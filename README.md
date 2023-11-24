@@ -12,7 +12,9 @@ maven {
   content { includeGroup "com.github.stiemannkj1" }
 }
 
-// AVOID dependency confusion attacks for other repos:
+// Avoid dependency confusion attacks for other repos by excluding this group
+// from them. For example, avoid resolving dependencies from this group for
+// mavenCentral:
 mavenCentral {
   content { excludeGroupByRegex "com[.]github[.]stiemannkj1.*" }
 }
