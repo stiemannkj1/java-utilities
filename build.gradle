@@ -8,9 +8,10 @@ group = 'com.github.stiemannkj1'
 version = '0.2-SNAPSHOT'
 
 repositories {
-  mavenLocal()
   mavenCentral()
 }
+
+final def mavenLocalPath = "${System.getProperty("user.home")}/.m2/repository"
 
 publishing {
   publications {
@@ -19,9 +20,19 @@ publishing {
     }
   }
   repositories {
-    mavenLocal()
+    maven {
+      url "file:///$mavenLocalPath"
+    }
   }
 }
+
+// Work around https://github.com/gradle/gradle/issues/2798 to publish full
+// checksum files to JitPack.
+tasks.replace('publishToMavenLocal')
+    .dependsOn(tasks.publishAllPublicationsToMavenRepository)
+    .doFirst {
+      println("Published artifacts to $mavenLocalPath")
+    }
 
 compileJava {
   options.getRelease().set(8)
