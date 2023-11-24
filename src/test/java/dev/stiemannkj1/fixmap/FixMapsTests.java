@@ -58,11 +58,18 @@ final class FixMapsTests {
           "ab,false,null",
           "abc,true,0",
           "abe,true,1",
-          "abd,false,null",
+          "abd,true,2",
           "aba,false,null",
-          "abdicat,false,null",
-          "abdicate,true,2",
-          "abdicated,true,2"
+          "abd,true,2",
+          "abdi,true,2",
+          "abdic,true,2",
+          "abdica,true,2",
+          "abdicat,true,2",
+          "abdicat,true,2",
+          "abdicate,true,3",
+          "abdicated,true,3",
+          "x,false,null",
+          "xy,false,null"
         },
         nullValues = "null")
     @ParameterizedTest
@@ -71,7 +78,7 @@ final class FixMapsTests {
 
       // Test odd number of prefixes.
       final Map<String, Integer> prefixes =
-          newTestMapBuilder().add("abc", 0).add("abe", 1).add("abdicate", 2).map;
+          newTestMapBuilder().add("abc", 0).add("abe", 1).add("abd", 2).add("abdicate", 3).map;
 
       ImmutablePrefixMap<Integer> prefixMap = newPrefixMap(prefixes);
 
@@ -80,8 +87,8 @@ final class FixMapsTests {
       assertEquals(
           getKeyAndValueByValue(prefixes, expectedValue), prefixMap.keyAndValueForPrefix(string));
 
-      // Test even number of prefixes.
-      prefixes.put("xyz", 3);
+      // Test odd number of prefixes.
+      prefixes.put("xyz", 4);
 
       prefixMap = newPrefixMap(prefixes);
 
@@ -89,16 +96,6 @@ final class FixMapsTests {
       assertEquals(expectedValue, prefixMap.valueForPrefix(string));
       assertEquals(
           getKeyAndValueByValue(prefixes, expectedValue), prefixMap.keyAndValueForPrefix(string));
-    }
-
-    @Test
-    default void allows_prefixes_with_matching_suffixes() {
-
-      // Test odd number of suffixes.
-      final Map<String, Integer> suffixes =
-          newTestMapBuilder().add("bdicate", 0).add("abdicate", 2).map;
-
-      assertDoesNotThrow(() -> newPrefixMap(suffixes));
     }
 
     static Stream<Map<String, Integer>> invalidPrefixes() {
@@ -109,28 +106,10 @@ final class FixMapsTests {
           newTestMapBuilder().add(null, 1).add("asdf", 1).map,
           newTestMapBuilder().add("", 1).map,
           newTestMapBuilder().add("", 1).add("asdf", 1).map,
-          newTestMapBuilder().add("asd", 1).add("asdf", 1).map,
-          newTestMapBuilder().add("asdf", 1).add("asdfg", 1).map,
-          newTestMapBuilder().add("asd", 1).add("asdf", 1).add("asdfg", 1).map,
-          // Odd number of keys:
-          newTestMapBuilder().add("aaa", 1).add("asdf", 1).add("asdfg", 1).map,
-          // Even number of keys:
-          newTestMapBuilder().add("asd", 1).add("asdf", 1).add("aaa", 1).add("bbb", 1).map,
           // Invalid map with duplicate keys:
           toMap(Arrays.asList(Pair.of("asdf", 1), Pair.of("asdf", 1))),
           // Invalid map with null entry:
           toMap(Arrays.asList(null, Pair.of("asdf", 1))));
-    }
-
-    @MethodSource("invalidPrefixes")
-    @ParameterizedTest
-    default void throws_illegal_arg_when_provided_invalid_values(
-        final Map<String, Integer> prefixes) {
-
-      final Class<? extends Exception> expectedExceptionType =
-          prefixes != null ? IllegalArgumentException.class : NullPointerException.class;
-
-      assertThrows(expectedExceptionType, () -> newPrefixMap(prefixes));
     }
 
     ImmutablePrefixMap<Integer> newPrefixMap(final Map<String, Integer> prefixes);
@@ -144,7 +123,7 @@ final class FixMapsTests {
           ",false,null",
           "123456,false,null",
           "~~~~~~,false,null",
-          "ate,false,null",
+          "a,false,null",
           "ab,false,null",
           "abc,true,0",
           "1abc,true,0",
@@ -152,9 +131,17 @@ final class FixMapsTests {
           "abed,false,null",
           "abd,false,null",
           "aba,false,null",
-          "abdicate,true,2",
-          "i abdicate,true,2",
-          "abdicated,false,null"
+          "at,false,null",
+          "ate,true,2",
+          "cate,true,2",
+          "icate,true,2",
+          "dicate,true,2",
+          "bdicate,true,2",
+          "abdicate,true,3",
+          "i abdicate,true,3",
+          "abdicated,false,null",
+          "z,false,null",
+          "yz,false,null"
         },
         nullValues = "null")
     @ParameterizedTest
@@ -163,7 +150,7 @@ final class FixMapsTests {
 
       // Test odd number of suffixes.
       final Map<String, Integer> suffixes =
-          newTestMapBuilder().add("abc", 0).add("abe", 1).add("abdicate", 2).map;
+          newTestMapBuilder().add("abc", 0).add("abe", 1).add("ate", 2).add("abdicate", 3).map;
 
       ImmutableSuffixMap<Integer> suffixMap = newSuffixMap(suffixes);
 
@@ -173,7 +160,7 @@ final class FixMapsTests {
           getKeyAndValueByValue(suffixes, expectedValue), suffixMap.keyAndValueForSuffix(string));
 
       // Test even number of suffixes.
-      suffixes.put("xyz", 3);
+      suffixes.put("xyz", 4);
 
       suffixMap = newSuffixMap(suffixes);
 
@@ -201,13 +188,6 @@ final class FixMapsTests {
           newTestMapBuilder().add(null, 1).add("asdf", 1).map,
           newTestMapBuilder().add("", 1).map,
           newTestMapBuilder().add("", 1).add("asdf", 1).map,
-          newTestMapBuilder().add("dfg", 1).add("sdfg", 1).map,
-          newTestMapBuilder().add("sdfg", 1).add("asdfg", 1).map,
-          newTestMapBuilder().add("dfg", 1).add("sdfg", 1).add("asdfg", 1).map,
-          // Odd number of keys:
-          newTestMapBuilder().add("aaa", 1).add("sdfg", 1).add("asdfg", 1).map,
-          // Even number of keys:
-          newTestMapBuilder().add("dfg", 1).add("sdfg", 1).add("aaa", 1).add("bbb", 1).map,
           // Invalid map with duplicate keys:
           toMap(Arrays.asList(Pair.of("asdf", 1), Pair.of("asdf", 1))),
           // Invalid map with null entry:

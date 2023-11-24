@@ -64,54 +64,18 @@ class BinarySearchArrayFixMap<T> {
         (pair1, pair2) -> {
           final int compareTo =
               compareFix(
-                  forPrefix, pair1.first.length() > pair2.first.length(), pair1.first, pair2.first);
+                  forPrefix, pair1.first.length() > pair2.first.length(), pair2.first, pair1.first);
 
-          if (compareTo == 0) {
+          if (pair1.first.length() == pair2.first.length() && compareTo == 0) {
             throw new IllegalArgumentException("Duplicate keys found for: " + pair1.first);
           }
 
           return compareTo;
         });
 
-    for (int i = 0; i < (sortedFixes.size() - 1); i++) {
-      validateNeitherMatch(forPrefix, sortedFixes.get(i).first, sortedFixes.get(i + 1).first);
-    }
-
     this.sortedFixes = Collections.unmodifiableList(sortedFixes);
     this.minPrefixLength = minPrefixLength;
     this.forPrefix = forPrefix;
-  }
-
-  private static void validateNeitherMatch(
-      final boolean forPrefix, final String string1, final String string2) {
-
-    if (string1.length() > string2.length()) {
-      validateNotFix(forPrefix, string1, string2);
-    } else if (string1.length() < string2.length()) {
-      validateNotFix(forPrefix, string2, string1);
-    }
-  }
-
-  private static void validateNotFix(
-      final boolean forPrefix, final String string, final String possibleFix) {
-
-    if (forPrefix && string.startsWith(possibleFix)) {
-      throw new IllegalArgumentException(
-          "\""
-              + possibleFix
-              + "\" is a prefix of \""
-              + string
-              + "\".  Prefixes that are prefixes of each other are not allowed.");
-    }
-
-    if (!forPrefix && string.endsWith(possibleFix)) {
-      throw new IllegalArgumentException(
-          "\""
-              + possibleFix
-              + "\" is a suffix of \""
-              + string
-              + "\". Suffixes that are suffixes of each other are not allowed.");
-    }
   }
 
   Pair<String, T> getKeyAndValue(final String string) {
@@ -127,6 +91,7 @@ class BinarySearchArrayFixMap<T> {
     int max = sortedFixes.size() - 1;
     int min = 0;
     int bisect;
+    Pair<String, T> lastMatch = null;
 
     while (min <= max) {
 
@@ -134,22 +99,17 @@ class BinarySearchArrayFixMap<T> {
 
       final Pair<String, T> fixPair = sortedFixes.get(bisect);
       final String fix = fixPair.first;
-      int compareTo;
-
-      if (fix.length() > string.length()) {
-        compareTo = compareFix(forPrefix, true, fix, string);
-
-        if (compareTo == 0) {
-          // We don't allow *fixes of *fixes in the map. If the *fix ends with the string to search,
-          // it will not match any other *fix in the map.
-          return null;
-        }
-      } else {
-        compareTo = compareFix(forPrefix, false, fix, string);
-      }
+      int compareTo = compareFix(forPrefix, fix.length() > string.length(), string, fix);
 
       if (compareTo == 0) {
-        return fixPair;
+        if (fix.length() == string.length()) {
+          return fixPair;
+        } else if (fix.length() < string.length()) {
+          lastMatch = fixPair;
+          compareTo = -1;
+        } else {
+          compareTo = 1;
+        }
       }
 
       if (compareTo > 0) {
@@ -159,23 +119,23 @@ class BinarySearchArrayFixMap<T> {
       }
     }
 
-    return null;
+    return lastMatch;
   }
 
   private static int compareFix(
       final boolean forPrefix,
       final boolean fixLargerThanSearchString,
-      final String fix,
-      final String string) {
+      final String string,
+      final String fix) {
 
     if (forPrefix) {
       return fixLargerThanSearchString
-          ? fix.substring(0, string.length()).compareTo(string)
-          : fix.compareTo(string.substring(0, fix.length()));
+          ? string.compareTo(fix.substring(0, string.length()))
+          : string.substring(0, fix.length()).compareTo(fix);
     }
 
     return fixLargerThanSearchString
-        ? fix.substring(fix.length() - string.length()).compareTo(string)
-        : fix.compareTo(string.substring(string.length() - fix.length()));
+        ? string.compareTo(fix.substring(fix.length() - string.length()))
+        : string.substring(string.length() - fix.length()).compareTo(fix);
   }
 }

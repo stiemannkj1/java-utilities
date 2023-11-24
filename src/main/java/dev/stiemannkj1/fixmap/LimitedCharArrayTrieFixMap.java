@@ -21,32 +21,10 @@ import java.util.Map;
 class LimitedCharArrayTrieFixMap<T> {
 
   private static final class Node<T> {
-    private final Node<T>[] nodes;
-    private final Pair<String, T> keyValuePair;
+    private Node<T>[] nodes;
+    private Pair<String, T> keyValuePair;
 
-    private Node(final Node<T>[] nodes, final Pair<String, T> keyValuePair) {
-      if (nodes == null && keyValuePair == null) {
-        throw new NullPointerException();
-      }
-
-      if (nodes != null && keyValuePair != null) {
-        throw new IllegalArgumentException(
-            "Node may not be a terminal node and include a subtree.");
-      }
-
-      this.nodes = nodes;
-      this.keyValuePair = keyValuePair;
-    }
-
-    private static <T> Node<T> subtree(final Node<T>[] nodes) {
-      return new Node<>(nodes, null);
-    }
-
-    private static <T> Node<T> terminal(final Map.Entry<String, T> entry) {
-      return new Node<>(null, Pair.fromEntry(entry));
-    }
-
-    private boolean isTerminal() {
+    private boolean isMatch() {
       return this.keyValuePair != null;
     }
   }
@@ -121,38 +99,26 @@ class LimitedCharArrayTrieFixMap<T> {
               char_ + " is more than maximum allowed character of " + min);
         }
 
-        final boolean terminates = (i == length - 1);
+        final boolean endOfMatch = (i == length - 1);
 
         final int charAsIndex = toIndex(char_, offset);
 
         Node<T> currentNode = currentNodes[charAsIndex];
 
-        if (currentNode != null
-            && (currentNode.isTerminal() || (terminates && !currentNode.isTerminal()))) {
-          if (forPrefix) {
-            throw new IllegalArgumentException(
-                "\""
-                    + fixString
-                    + "\" matches another prefix.  Prefixes that are prefixes of each other are not allowed.");
-          } else {
-            throw new IllegalArgumentException(
-                "\""
-                    + fixString
-                    + "\" matches another suffix.  Suffixes that are suffixes of each other are not allowed.");
-          }
-        }
-
-        if (terminates) {
-          currentNodes[charAsIndex] = Node.terminal(fix);
-          break;
-        }
-
         if (currentNode == null) {
+          currentNode = new Node<>();
+          currentNodes[charAsIndex] = currentNode;
+        } else if (endOfMatch && currentNode.isMatch()) {
+          throw new IllegalArgumentException("Duplicate keys found for: " + fixString);
+        }
 
+        if (endOfMatch) {
+          currentNode.keyValuePair = Pair.fromEntry(fix);
+          break;
+        } else if (currentNode.nodes == null) {
           @SuppressWarnings("unchecked")
           final Node<T>[] nodes = new Node[trieNodeLength];
-          currentNode = Node.subtree(nodes);
-          currentNodes[charAsIndex] = currentNode;
+          currentNode.nodes = nodes;
         }
 
         currentNodes = currentNode.nodes;
@@ -204,28 +170,33 @@ class LimitedCharArrayTrieFixMap<T> {
     }
 
     Node<T>[] currentNodes = nodes;
+    Pair<String, T> lastMatch = null;
 
     for (int i = 0; i < length; i++) {
 
       final char char_ = string.charAt(forPrefix ? i : length - i - 1);
 
       if (char_ < min || max < char_) {
-        return null;
+        break;
       }
 
       final Node<T> currentNode = currentNodes[toIndex(char_, offset)];
 
       if (currentNode == null) {
-        return null;
+        break;
       }
 
-      if (currentNode.isTerminal()) {
-        return currentNode.keyValuePair;
+      if (currentNode.isMatch()) {
+        lastMatch = currentNode.keyValuePair;
+      }
+
+      if (currentNode.nodes == null) {
+        break;
       }
 
       currentNodes = currentNode.nodes;
     }
 
-    return null;
+    return lastMatch;
   }
 }
