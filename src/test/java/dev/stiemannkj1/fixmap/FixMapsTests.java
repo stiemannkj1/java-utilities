@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -74,6 +75,8 @@ final class FixMapsTests {
 
       assertEquals(expectPrefixed, prefixMap.matchesAnyPrefix(string));
       assertEquals(expectedValue, prefixMap.valueForPrefix(string));
+      assertEquals(
+          getKeyAndValueByValue(prefixes, expectedValue), prefixMap.keyAndValueForPrefix(string));
 
       // Test even number of prefixes.
       prefixes.put("xyz", 3);
@@ -82,6 +85,8 @@ final class FixMapsTests {
 
       assertEquals(expectPrefixed, prefixMap.matchesAnyPrefix(string));
       assertEquals(expectedValue, prefixMap.valueForPrefix(string));
+      assertEquals(
+          getKeyAndValueByValue(prefixes, expectedValue), prefixMap.keyAndValueForPrefix(string));
     }
 
     static Stream<Map<String, Integer>> invalidPrefixes() {
@@ -152,6 +157,8 @@ final class FixMapsTests {
 
       assertEquals(expectSuffixed, suffixMap.matchesAnySuffix(string));
       assertEquals(expectedValue, suffixMap.valueForSuffix(string));
+      assertEquals(
+          getKeyAndValueByValue(suffixes, expectedValue), suffixMap.keyAndValueForSuffix(string));
 
       // Test even number of suffixes.
       suffixes.put("xyz", 3);
@@ -160,6 +167,8 @@ final class FixMapsTests {
 
       assertEquals(expectSuffixed, suffixMap.matchesAnySuffix(string));
       assertEquals(expectedValue, suffixMap.valueForSuffix(string));
+      assertEquals(
+          getKeyAndValueByValue(suffixes, expectedValue), suffixMap.keyAndValueForSuffix(string));
     }
 
     static Stream<Map<String, Integer>> invalidSuffixes() {
@@ -278,6 +287,14 @@ final class FixMapsTests {
         };
       }
     };
+  }
+
+  private static <K, V> Pair<K, V> getKeyAndValueByValue(final Map<K, V> map, final V value) {
+    return map.entrySet().stream()
+        .filter(entry -> Objects.equals(entry.getValue(), value))
+        .findFirst()
+        .map(Pair::fromEntry)
+        .orElse(null);
   }
 
   private FixMapsTests() {}

@@ -15,26 +15,39 @@
 */
 package dev.stiemannkj1.fixmap;
 
+import dev.stiemannkj1.util.Pair;
 import java.util.Map;
 
 class LimitedCharArrayTrieFixMap<T> {
 
   private static final class Node<T> {
     private final Node<T>[] nodes;
-    private final T value;
+    private final Pair<String, T> keyValuePair;
 
-    private Node(final Node<T>[] nodes) {
+    private Node(final Node<T>[] nodes, final Pair<String, T> keyValuePair) {
+      if (nodes == null && keyValuePair == null) {
+        throw new NullPointerException();
+      }
+
+      if (nodes != null && keyValuePair != null) {
+        throw new IllegalArgumentException(
+            "Node may not be a terminal node and include a subtree.");
+      }
+
       this.nodes = nodes;
-      this.value = null;
+      this.keyValuePair = keyValuePair;
     }
 
-    private Node(final T value) {
-      this.nodes = null;
-      this.value = value;
+    private static <T> Node<T> subtree(final Node<T>[] nodes) {
+      return new Node<>(nodes, null);
+    }
+
+    private static <T> Node<T> terminal(final Map.Entry<String, T> entry) {
+      return new Node<>(null, Pair.fromEntry(entry));
     }
 
     private boolean isTerminal() {
-      return this.nodes == null;
+      return this.keyValuePair != null;
     }
   }
 
@@ -130,7 +143,7 @@ class LimitedCharArrayTrieFixMap<T> {
         }
 
         if (terminates) {
-          currentNodes[charAsIndex] = new Node<>(fix.getValue());
+          currentNodes[charAsIndex] = Node.terminal(fix);
           break;
         }
 
@@ -138,7 +151,7 @@ class LimitedCharArrayTrieFixMap<T> {
 
           @SuppressWarnings("unchecked")
           final Node<T>[] nodes = new Node[trieNodeLength];
-          currentNode = new Node<>(nodes);
+          currentNode = Node.subtree(nodes);
           currentNodes[charAsIndex] = currentNode;
         }
 
@@ -178,7 +191,7 @@ class LimitedCharArrayTrieFixMap<T> {
     return char_ ^ offset;
   }
 
-  T getValue(final String string) {
+  Pair<String, T> getKeyAndValue(final String string) {
 
     if (string == null) {
       return null;
@@ -207,7 +220,7 @@ class LimitedCharArrayTrieFixMap<T> {
       }
 
       if (currentNode.isTerminal()) {
-        return currentNode.value;
+        return currentNode.keyValuePair;
       }
 
       currentNodes = currentNode.nodes;

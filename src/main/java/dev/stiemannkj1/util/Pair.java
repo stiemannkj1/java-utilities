@@ -43,6 +43,14 @@ public class Pair<T1, T2> implements Map.Entry<T1, T2> {
     return second;
   }
 
+  public T1 key() {
+    return first;
+  }
+
+  public T2 value() {
+    return second;
+  }
+
   @Override
   public T1 getKey() {
     return first;
@@ -94,10 +102,6 @@ public class Pair<T1, T2> implements Map.Entry<T1, T2> {
 
     public String name() {
       return first;
-    }
-
-    public V value() {
-      return second;
     }
   }
 

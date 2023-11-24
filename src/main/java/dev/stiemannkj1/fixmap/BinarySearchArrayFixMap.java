@@ -114,7 +114,7 @@ class BinarySearchArrayFixMap<T> {
     }
   }
 
-  T getValue(final String string) {
+  Pair<String, T> getKeyAndValue(final String string) {
 
     if (string == null) {
       return null;
@@ -149,7 +149,7 @@ class BinarySearchArrayFixMap<T> {
       }
 
       if (compareTo == 0) {
-        return fixPair.second;
+        return fixPair;
       }
 
       if (compareTo > 0) {

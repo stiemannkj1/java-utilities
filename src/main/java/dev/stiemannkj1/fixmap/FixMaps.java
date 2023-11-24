@@ -15,22 +15,47 @@
 */
 package dev.stiemannkj1.fixmap;
 
+import dev.stiemannkj1.util.Pair;
 import java.util.Map;
 
 public final class FixMaps {
 
   public interface ImmutablePrefixMap<T> {
 
-    boolean matchesAnyPrefix(final String string);
+    default boolean matchesAnyPrefix(final String string) {
+      return keyAndValueForPrefix(string) != null;
+    }
 
-    T valueForPrefix(final String string);
+    default T valueForPrefix(final String string) {
+      final Pair<String, T> keyAndValue = keyAndValueForPrefix(string);
+
+      if (keyAndValue == null) {
+        return null;
+      }
+
+      return keyAndValue.second;
+    }
+
+    Pair<String, T> keyAndValueForPrefix(final String string);
   }
 
   public interface ImmutableSuffixMap<T> {
 
-    boolean matchesAnySuffix(final String string);
+    default boolean matchesAnySuffix(final String string) {
+      return keyAndValueForSuffix(string) != null;
+    }
 
-    T valueForSuffix(final String string);
+    default T valueForSuffix(final String string) {
+      final Pair<String, T> keyAndValue = keyAndValueForSuffix(string);
+
+      if (keyAndValue == null) {
+        return null;
+      }
+
+      return keyAndValue.second;
+    }
+
+    Pair<String, T> keyAndValueForSuffix(final String string);
   }
 
   public static <T> ImmutablePrefixMap<T> binarySearchArrayPrefixMap(
@@ -46,13 +71,8 @@ public final class FixMaps {
     }
 
     @Override
-    public boolean matchesAnyPrefix(final String string) {
-      return getValue(string) != null;
-    }
-
-    @Override
-    public T valueForPrefix(final String string) {
-      return getValue(string);
+    public Pair<String, T> keyAndValueForPrefix(final String string) {
+      return getKeyAndValue(string);
     }
   }
 
@@ -69,13 +89,8 @@ public final class FixMaps {
     }
 
     @Override
-    public boolean matchesAnySuffix(final String string) {
-      return getValue(string) != null;
-    }
-
-    @Override
-    public T valueForSuffix(final String string) {
-      return getValue(string);
+    public Pair<String, T> keyAndValueForSuffix(final String string) {
+      return getKeyAndValue(string);
     }
   }
 
@@ -92,13 +107,8 @@ public final class FixMaps {
     }
 
     @Override
-    public boolean matchesAnyPrefix(final String string) {
-      return getValue(string) != null;
-    }
-
-    @Override
-    public T valueForPrefix(final String string) {
-      return getValue(string);
+    public Pair<String, T> keyAndValueForPrefix(final String string) {
+      return getKeyAndValue(string);
     }
   }
 
@@ -115,13 +125,8 @@ public final class FixMaps {
     }
 
     @Override
-    public boolean matchesAnySuffix(final String string) {
-      return getValue(string) != null;
-    }
-
-    @Override
-    public T valueForSuffix(final String string) {
-      return getValue(string);
+    public Pair<String, T> keyAndValueForSuffix(final String string) {
+      return getKeyAndValue(string);
     }
   }
 
