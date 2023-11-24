@@ -19,6 +19,7 @@ import static dev.stiemannkj1.fixmap.FixMaps.binarySearchArrayPrefixMap;
 import static dev.stiemannkj1.fixmap.FixMaps.binarySearchArraySuffixMap;
 import static dev.stiemannkj1.fixmap.FixMaps.limitedCharArrayTriePrefixMap;
 import static dev.stiemannkj1.fixmap.FixMaps.limitedCharArrayTrieSuffixMap;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -36,6 +37,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -87,6 +89,16 @@ final class FixMapsTests {
       assertEquals(expectedValue, prefixMap.valueForPrefix(string));
       assertEquals(
           getKeyAndValueByValue(prefixes, expectedValue), prefixMap.keyAndValueForPrefix(string));
+    }
+
+    @Test
+    default void allows_prefixes_with_matching_suffixes() {
+
+      // Test odd number of suffixes.
+      final Map<String, Integer> suffixes =
+          newTestMapBuilder().add("bdicate", 0).add("abdicate", 2).map;
+
+      assertDoesNotThrow(() -> newPrefixMap(suffixes));
     }
 
     static Stream<Map<String, Integer>> invalidPrefixes() {
@@ -169,6 +181,16 @@ final class FixMapsTests {
       assertEquals(expectedValue, suffixMap.valueForSuffix(string));
       assertEquals(
           getKeyAndValueByValue(suffixes, expectedValue), suffixMap.keyAndValueForSuffix(string));
+    }
+
+    @Test
+    default void allows_suffixes_with_matching_prefixes() {
+
+      // Test odd number of suffixes.
+      final Map<String, Integer> suffixes =
+          newTestMapBuilder().add("abdicat", 0).add("abdicate", 2).map;
+
+      assertDoesNotThrow(() -> newSuffixMap(suffixes));
     }
 
     static Stream<Map<String, Integer>> invalidSuffixes() {

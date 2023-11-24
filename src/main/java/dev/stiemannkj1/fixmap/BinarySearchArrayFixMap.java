@@ -104,7 +104,7 @@ class BinarySearchArrayFixMap<T> {
               + "\".  Prefixes that are prefixes of each other are not allowed.");
     }
 
-    if (string.endsWith(possibleFix)) {
+    if (!forPrefix && string.endsWith(possibleFix)) {
       throw new IllegalArgumentException(
           "\""
               + possibleFix
