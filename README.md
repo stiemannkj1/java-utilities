@@ -19,7 +19,7 @@ mavenCentral {
   content { excludeGroupByRegex "com[.]github[.]stiemannkj1.*" }
 }
 
-implementation 'com.github.stiemannkj1:java-utilities:0.1'
+implementation 'com.github.stiemannkj1:java-utilities:0.4'
 ```
 
 ## Building
