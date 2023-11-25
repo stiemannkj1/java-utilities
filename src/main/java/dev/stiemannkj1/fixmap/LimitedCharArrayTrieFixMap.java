@@ -15,10 +15,12 @@
 */
 package dev.stiemannkj1.fixmap;
 
+import dev.stiemannkj1.annotations.VisibleForTesting;
 import dev.stiemannkj1.util.Pair;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
-class LimitedCharArrayTrieFixMap<T> {
+class LimitedCharArrayTrieFixMap<T> implements FixCollections.FixMap<T> {
 
   private static final class Node<T> {
     private Node<T>[] nodes;
@@ -38,6 +40,8 @@ class LimitedCharArrayTrieFixMap<T> {
 
   LimitedCharArrayTrieFixMap(
       final boolean forPrefix, final char min, final char max, final Map<String, T> fixes) {
+
+    // TODO implement Patricia Trie to save space
 
     if (max < min) {
       throw new IllegalArgumentException("Max character must be more than min character.");
@@ -157,7 +161,10 @@ class LimitedCharArrayTrieFixMap<T> {
     return char_ ^ offset;
   }
 
-  Pair<String, T> getKeyAndValue(final String string) {
+  @VisibleForTesting
+  @Override
+  public Pair<String, T> getKeyAndValue(
+      final boolean getLongestMatch, final String string, final AtomicLong debugSearchSteps) {
 
     if (string == null) {
       return null;
@@ -174,6 +181,10 @@ class LimitedCharArrayTrieFixMap<T> {
 
     for (int i = 0; i < length; i++) {
 
+      if (debugSearchSteps != null) {
+        debugSearchSteps.incrementAndGet();
+      }
+
       final char char_ = string.charAt(forPrefix ? i : length - i - 1);
 
       if (char_ < min || max < char_) {
@@ -187,6 +198,11 @@ class LimitedCharArrayTrieFixMap<T> {
       }
 
       if (currentNode.isMatch()) {
+
+        if (!getLongestMatch) {
+          return currentNode.keyValuePair;
+        }
+
         lastMatch = currentNode.keyValuePair;
       }
 

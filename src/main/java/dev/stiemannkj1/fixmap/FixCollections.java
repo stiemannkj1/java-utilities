@@ -15,13 +15,33 @@
 */
 package dev.stiemannkj1.fixmap;
 
+import dev.stiemannkj1.annotations.VisibleForTesting;
 import dev.stiemannkj1.util.Pair;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
-public final class FixMaps {
+public final class FixCollections {
 
-  public interface ImmutablePrefixMap<T> {
+  @VisibleForTesting
+  interface FixMap<T> {
+    Pair<String, T> getKeyAndValue(
+        final boolean getLongestMatch, final String string, final AtomicLong debugSearchSteps);
+  }
 
+  public interface ImmutablePrefixSet {
+    boolean matchesAnyPrefix(final String string);
+  }
+
+  public interface ImmutableSuffixSet {
+    boolean matchesAnySuffix(final String string);
+  }
+
+  public interface ImmutablePrefixMap<T> extends ImmutablePrefixSet {
+
+    @Override
     default boolean matchesAnyPrefix(final String string) {
       return keyAndValueForPrefix(string) != null;
     }
@@ -39,8 +59,9 @@ public final class FixMaps {
     Pair<String, T> keyAndValueForPrefix(final String string);
   }
 
-  public interface ImmutableSuffixMap<T> {
+  public interface ImmutableSuffixMap<T> extends ImmutableSuffixSet {
 
+    @Override
     default boolean matchesAnySuffix(final String string) {
       return keyAndValueForSuffix(string) != null;
     }
@@ -58,6 +79,15 @@ public final class FixMaps {
     Pair<String, T> keyAndValueForSuffix(final String string);
   }
 
+  private static Map<String, Boolean> toMap(final List<String> fixes) {
+    return fixes.stream()
+        .collect(Collectors.toMap(key -> key, key -> true, (k1, k2) -> k1, HashMap::new));
+  }
+
+  public static ImmutablePrefixSet binarySearchArrayPrefixSet(final List<String> prefixes) {
+    return new BinarySearchArrayPrefixMap<>(toMap(prefixes));
+  }
+
   public static <T> ImmutablePrefixMap<T> binarySearchArrayPrefixMap(
       final Map<String, T> prefixes) {
     return new BinarySearchArrayPrefixMap<>(prefixes);
@@ -71,9 +101,18 @@ public final class FixMaps {
     }
 
     @Override
-    public Pair<String, T> keyAndValueForPrefix(final String string) {
-      return getKeyAndValue(string);
+    public boolean matchesAnyPrefix(final String string) {
+      return getKeyAndValue(false, string, null) != null;
     }
+
+    @Override
+    public Pair<String, T> keyAndValueForPrefix(final String string) {
+      return getKeyAndValue(true, string, null);
+    }
+  }
+
+  public static ImmutableSuffixSet binarySearchArraySuffixSet(final List<String> suffixes) {
+    return new BinarySearchArraySuffixMap<>(toMap(suffixes));
   }
 
   public static <T> ImmutableSuffixMap<T> binarySearchArraySuffixMap(
@@ -89,9 +128,19 @@ public final class FixMaps {
     }
 
     @Override
-    public Pair<String, T> keyAndValueForSuffix(final String string) {
-      return getKeyAndValue(string);
+    public boolean matchesAnySuffix(final String string) {
+      return getKeyAndValue(false, string, null) != null;
     }
+
+    @Override
+    public Pair<String, T> keyAndValueForSuffix(final String string) {
+      return getKeyAndValue(true, string, null);
+    }
+  }
+
+  public static ImmutablePrefixSet limitedCharArrayTriePrefixSet(
+      final char min, final char max, final List<String> prefixes) {
+    return new LimitedCharArrayTriePrefixMap<>(min, max, toMap(prefixes));
   }
 
   public static <T> ImmutablePrefixMap<T> limitedCharArrayTriePrefixMap(
@@ -107,9 +156,19 @@ public final class FixMaps {
     }
 
     @Override
-    public Pair<String, T> keyAndValueForPrefix(final String string) {
-      return getKeyAndValue(string);
+    public boolean matchesAnyPrefix(final String string) {
+      return getKeyAndValue(false, string, null) != null;
     }
+
+    @Override
+    public Pair<String, T> keyAndValueForPrefix(final String string) {
+      return getKeyAndValue(true, string, null);
+    }
+  }
+
+  public static ImmutableSuffixSet limitedCharArrayTrieSuffixSet(
+      final char min, final char max, final List<String> suffixes) {
+    return new LimitedCharArrayTrieSuffixMap<>(min, max, toMap(suffixes));
   }
 
   public static <T> ImmutableSuffixMap<T> limitedCharArrayTrieSuffixMap(
@@ -125,10 +184,15 @@ public final class FixMaps {
     }
 
     @Override
+    public boolean matchesAnySuffix(final String string) {
+      return getKeyAndValue(false, string, null) != null;
+    }
+
+    @Override
     public Pair<String, T> keyAndValueForSuffix(final String string) {
-      return getKeyAndValue(string);
+      return getKeyAndValue(true, string, null);
     }
   }
 
-  private FixMaps() {}
+  private FixCollections() {}
 }

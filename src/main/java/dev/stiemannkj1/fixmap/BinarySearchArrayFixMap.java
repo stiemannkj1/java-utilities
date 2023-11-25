@@ -15,13 +15,15 @@
 */
 package dev.stiemannkj1.fixmap;
 
+import dev.stiemannkj1.annotations.VisibleForTesting;
 import dev.stiemannkj1.util.Pair;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
-class BinarySearchArrayFixMap<T> {
+class BinarySearchArrayFixMap<T> implements FixCollections.FixMap<T> {
 
   private final List<Pair<String, T>> sortedFixes;
   private final int minPrefixLength;
@@ -78,7 +80,10 @@ class BinarySearchArrayFixMap<T> {
     this.forPrefix = forPrefix;
   }
 
-  Pair<String, T> getKeyAndValue(final String string) {
+  @VisibleForTesting
+  @Override
+  public Pair<String, T> getKeyAndValue(
+      final boolean getLongestMatch, final String string, final AtomicLong debugSearchSteps) {
 
     if (string == null) {
       return null;
@@ -95,6 +100,11 @@ class BinarySearchArrayFixMap<T> {
 
     while (min <= max) {
 
+      if (debugSearchSteps != null) {
+        debugSearchSteps.incrementAndGet();
+      }
+
+      // TODO change to bitwise division
       bisect = ((max - min) / 2) + min;
 
       final Pair<String, T> fixPair = sortedFixes.get(bisect);
@@ -102,9 +112,15 @@ class BinarySearchArrayFixMap<T> {
       int compareTo = compareFix(forPrefix, fix.length() > string.length(), string, fix);
 
       if (compareTo == 0) {
+
         if (fix.length() == string.length()) {
           return fixPair;
         } else if (fix.length() < string.length()) {
+
+          if (!getLongestMatch) {
+            return fixPair;
+          }
+
           lastMatch = fixPair;
           compareTo = -1;
         } else {

@@ -87,6 +87,11 @@ public class Pair<T1, T2> implements Map.Entry<T1, T2> {
     return Objects.hash(first, second);
   }
 
+  @Override
+  public String toString() {
+    return "{" + first + ',' + second + '}';
+  }
+
   public static <T1, T2> Pair<T1, T2> of(final T1 first, final T2 second) {
     return new Pair<>(first, second);
   }
