@@ -13,9 +13,9 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 */
-package dev.stiemannkj1.fixmap;
+package dev.stiemannkj1.collection.fixmapping;
 
-import dev.stiemannkj1.annotations.VisibleForTesting;
+import dev.stiemannkj1.annotation.VisibleForTesting;
 import dev.stiemannkj1.util.Pair;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -23,13 +23,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-class BinarySearchArrayFixMap<T> implements FixCollections.FixMap<T> {
+class BinarySearchArrayFixMapping<T> implements FixMappings.FixMapping<T> {
 
   private final List<Pair<String, T>> sortedFixes;
   private final int minPrefixLength;
   private final boolean forPrefix;
 
-  BinarySearchArrayFixMap(final boolean forPrefix, final Map<String, T> unsortedFixes) {
+  BinarySearchArrayFixMapping(final boolean forPrefix, final Map<String, T> unsortedFixes) {
 
     final int size = unsortedFixes.size();
 

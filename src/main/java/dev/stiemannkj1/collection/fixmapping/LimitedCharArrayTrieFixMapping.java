@@ -13,14 +13,14 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 */
-package dev.stiemannkj1.fixmap;
+package dev.stiemannkj1.collection.fixmapping;
 
-import dev.stiemannkj1.annotations.VisibleForTesting;
+import dev.stiemannkj1.annotation.VisibleForTesting;
 import dev.stiemannkj1.util.Pair;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-class LimitedCharArrayTrieFixMap<T> implements FixCollections.FixMap<T> {
+class LimitedCharArrayTrieFixMapping<T> implements FixMappings.FixMapping<T> {
 
   private static final class Node<T> {
     private Node<T>[] nodes;
@@ -38,7 +38,7 @@ class LimitedCharArrayTrieFixMap<T> implements FixCollections.FixMap<T> {
   private final char max;
   private final int minPrefixLength;
 
-  LimitedCharArrayTrieFixMap(
+  LimitedCharArrayTrieFixMapping(
       final boolean forPrefix, final char min, final char max, final Map<String, T> fixes) {
 
     // TODO implement Patricia Trie to save space

@@ -13,12 +13,12 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 */
-package dev.stiemannkj1.fixmap;
+package dev.stiemannkj1.collection.fixmapping;
 
-import static dev.stiemannkj1.fixmap.FixCollections.binarySearchArrayPrefixMap;
-import static dev.stiemannkj1.fixmap.FixCollections.binarySearchArraySuffixMap;
-import static dev.stiemannkj1.fixmap.FixCollections.limitedCharArrayTriePrefixMap;
-import static dev.stiemannkj1.fixmap.FixCollections.limitedCharArrayTrieSuffixMap;
+import static dev.stiemannkj1.collection.fixmapping.FixMappings.binarySearchArrayPrefixMapping;
+import static dev.stiemannkj1.collection.fixmapping.FixMappings.binarySearchArraySuffixMapping;
+import static dev.stiemannkj1.collection.fixmapping.FixMappings.limitedCharArrayTriePrefixMapping;
+import static dev.stiemannkj1.collection.fixmapping.FixMappings.limitedCharArrayTrieSuffixMapping;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -26,8 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.stiemannkj1.fixmap.FixCollections.ImmutablePrefixMap;
-import dev.stiemannkj1.fixmap.FixCollections.ImmutableSuffixMap;
+import dev.stiemannkj1.collection.fixmapping.FixMappings.ImmutablePrefixMapping;
+import dev.stiemannkj1.collection.fixmapping.FixMappings.ImmutableSuffixMapping;
 import dev.stiemannkj1.util.Pair;
 import java.util.AbstractMap;
 import java.util.AbstractSet;
@@ -46,11 +46,11 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
-final class FixCollectionsTests {
+final class FixMappingsTests {
 
   // TODO test unicode
 
-  interface PrefixMapsTests {
+  interface PrefixMappersTests {
 
     @CsvSource(
         value = {
@@ -85,7 +85,7 @@ final class FixCollectionsTests {
       final Map<String, Integer> prefixes =
           newTestMapBuilder().add("abc", 0).add("abe", 1).add("abd", 2).add("abdicate", 3).map;
 
-      ImmutablePrefixMap<Integer> prefixMap = newPrefixMap(prefixes);
+      ImmutablePrefixMapping<Integer> prefixMap = newPrefixMap(prefixes);
 
       assertEquals(expectPrefixed, prefixMap.matchesAnyPrefix(string));
       assertEquals(expectedValue, prefixMap.valueForPrefix(string));
@@ -93,7 +93,7 @@ final class FixCollectionsTests {
           getKeyAndValueByValue(prefixes, expectedValue), prefixMap.keyAndValueForPrefix(string));
 
       assertFirstMatchSearchTakesLessSteps(
-          string, expectedValue, (FixCollections.FixMap<Integer>) prefixMap);
+          string, expectedValue, (FixMappings.FixMapping<Integer>) prefixMap);
 
       // Test odd number of prefixes.
       prefixes.put("xyz", 4);
@@ -106,7 +106,7 @@ final class FixCollectionsTests {
           getKeyAndValueByValue(prefixes, expectedValue), prefixMap.keyAndValueForPrefix(string));
 
       assertFirstMatchSearchTakesLessSteps(
-          string, expectedValue, (FixCollections.FixMap<Integer>) prefixMap);
+          string, expectedValue, (FixMappings.FixMapping<Integer>) prefixMap);
     }
 
     @SuppressWarnings("unchecked")
@@ -123,7 +123,7 @@ final class FixCollectionsTests {
       final Map<String, Integer> prefixes =
           newTestMapBuilder().add("abc", 0).add("abe", 1).add("abd", 2).add("abdicate", 3).map;
 
-      ImmutablePrefixMap<Integer> prefixMap = newPrefixMap(prefixes);
+      ImmutablePrefixMapping<Integer> prefixMap = newPrefixMap(prefixes);
 
       final AtomicLong firstSearchSteps = new AtomicLong();
       final AtomicLong longestSearchSteps = new AtomicLong();
@@ -133,11 +133,11 @@ final class FixCollectionsTests {
 
       assertEquals(
           Pair.of(firstMatchEvenKeys, prefixes.get(firstMatchEvenKeys)),
-          ((FixCollections.FixMap<Integer>) prefixMap)
+          ((FixMappings.FixMapping<Integer>) prefixMap)
               .getKeyAndValue(false, string, firstSearchSteps));
       assertEquals(
           Pair.of("abdicate", 3),
-          ((FixCollections.FixMap<Integer>) prefixMap)
+          ((FixMappings.FixMapping<Integer>) prefixMap)
               .getKeyAndValue(true, string, longestSearchSteps));
 
       assertEquals(firstMatchStepsEvenKeys, firstSearchSteps.get());
@@ -153,11 +153,11 @@ final class FixCollectionsTests {
 
       assertEquals(
           Pair.of(firstMatchOddKeys, prefixes.get(firstMatchOddKeys)),
-          ((FixCollections.FixMap<Integer>) prefixMap)
+          ((FixMappings.FixMapping<Integer>) prefixMap)
               .getKeyAndValue(false, string, firstSearchSteps));
       assertEquals(
           Pair.of("abdicate", 3),
-          ((FixCollections.FixMap<Integer>) prefixMap)
+          ((FixMappings.FixMapping<Integer>) prefixMap)
               .getKeyAndValue(true, string, longestSearchSteps));
 
       assertEquals(firstMatchStepsOddKeys, firstSearchSteps.get());
@@ -199,10 +199,10 @@ final class FixCollectionsTests {
       assertThrows(expectedExceptionType, () -> newPrefixMap(prefixes));
     }
 
-    ImmutablePrefixMap<Integer> newPrefixMap(final Map<String, Integer> prefixes);
+    ImmutablePrefixMapping<Integer> newPrefixMap(final Map<String, Integer> prefixes);
   }
 
-  interface SuffixMapsTests {
+  interface SuffixMappersTests {
 
     @CsvSource(
         value = {
@@ -240,7 +240,7 @@ final class FixCollectionsTests {
       final Map<String, Integer> suffixes =
           newTestMapBuilder().add("abc", 0).add("abe", 1).add("ate", 2).add("abdicate", 3).map;
 
-      ImmutableSuffixMap<Integer> suffixMap = newSuffixMap(suffixes);
+      ImmutableSuffixMapping<Integer> suffixMap = newSuffixMap(suffixes);
 
       assertEquals(expectSuffixed, suffixMap.matchesAnySuffix(string));
       assertEquals(expectedValue, suffixMap.valueForSuffix(string));
@@ -248,7 +248,7 @@ final class FixCollectionsTests {
           getKeyAndValueByValue(suffixes, expectedValue), suffixMap.keyAndValueForSuffix(string));
 
       assertFirstMatchSearchTakesLessSteps(
-          string, expectedValue, (FixCollections.FixMap<Integer>) suffixMap);
+          string, expectedValue, (FixMappings.FixMapping<Integer>) suffixMap);
 
       // Test odd number of suffixes.
       suffixes.put("xyz", 4);
@@ -261,7 +261,7 @@ final class FixCollectionsTests {
           getKeyAndValueByValue(suffixes, expectedValue), suffixMap.keyAndValueForSuffix(string));
 
       assertFirstMatchSearchTakesLessSteps(
-          string, expectedValue, (FixCollections.FixMap<Integer>) suffixMap);
+          string, expectedValue, (FixMappings.FixMapping<Integer>) suffixMap);
     }
 
     @SuppressWarnings("unchecked")
@@ -278,7 +278,7 @@ final class FixCollectionsTests {
       final Map<String, Integer> suffixes =
           newTestMapBuilder().add("abc", 0).add("abe", 1).add("ate", 2).add("abdicate", 3).map;
 
-      ImmutableSuffixMap<Integer> suffixMap = newSuffixMap(suffixes);
+      ImmutableSuffixMapping<Integer> suffixMap = newSuffixMap(suffixes);
 
       final AtomicLong firstSearchSteps = new AtomicLong();
       final AtomicLong longestSearchSteps = new AtomicLong();
@@ -288,11 +288,11 @@ final class FixCollectionsTests {
 
       assertEquals(
           Pair.of(firstMatchEvenKeys, suffixes.get(firstMatchEvenKeys)),
-          ((FixCollections.FixMap<Integer>) suffixMap)
+          ((FixMappings.FixMapping<Integer>) suffixMap)
               .getKeyAndValue(false, string, firstSearchSteps));
       assertEquals(
           Pair.of("abdicate", 3),
-          ((FixCollections.FixMap<Integer>) suffixMap)
+          ((FixMappings.FixMapping<Integer>) suffixMap)
               .getKeyAndValue(true, string, longestSearchSteps));
 
       assertEquals(firstMatchStepsEvenKeys, firstSearchSteps.get());
@@ -308,11 +308,11 @@ final class FixCollectionsTests {
 
       assertEquals(
           Pair.of(firstMatchOddKeys, suffixes.get(firstMatchOddKeys)),
-          ((FixCollections.FixMap<Integer>) suffixMap)
+          ((FixMappings.FixMapping<Integer>) suffixMap)
               .getKeyAndValue(false, string, firstSearchSteps));
       assertEquals(
           Pair.of("abdicate", 3),
-          ((FixCollections.FixMap<Integer>) suffixMap)
+          ((FixMappings.FixMapping<Integer>) suffixMap)
               .getKeyAndValue(true, string, longestSearchSteps));
 
       assertEquals(firstMatchStepsOddKeys, firstSearchSteps.get());
@@ -354,16 +354,17 @@ final class FixCollectionsTests {
       assertThrows(expectedExceptionType, () -> newSuffixMap(suffixes));
     }
 
-    ImmutableSuffixMap<Integer> newSuffixMap(final Map<String, Integer> prefixes);
+    ImmutableSuffixMapping<Integer> newSuffixMap(final Map<String, Integer> prefixes);
   }
 
   private static void assertFirstMatchSearchTakesLessSteps(
-      String string, Integer expectedValue, FixCollections.FixMap<Integer> fixMap) {
+      String string, Integer expectedValue, FixMappings.FixMapping<Integer> fixMapping) {
 
     final AtomicLong firstSearchSteps = new AtomicLong(0);
     final AtomicLong longestSearchSteps = new AtomicLong(0);
 
-    final Pair<String, Integer> firstMatch = fixMap.getKeyAndValue(false, string, firstSearchSteps);
+    final Pair<String, Integer> firstMatch =
+        fixMapping.getKeyAndValue(false, string, firstSearchSteps);
 
     if (expectedValue != null) {
       assertNotNull(firstMatch);
@@ -372,7 +373,7 @@ final class FixCollectionsTests {
     }
 
     final Pair<String, Integer> longestMatch =
-        fixMap.getKeyAndValue(true, string, longestSearchSteps);
+        fixMapping.getKeyAndValue(true, string, longestSearchSteps);
 
     if (expectedValue != null) {
       assertNotNull(longestMatch);
@@ -383,10 +384,10 @@ final class FixCollectionsTests {
     assertTrue(firstSearchSteps.get() <= longestSearchSteps.get());
   }
 
-  static final class BinarySearchArrayPrefixMapTests implements PrefixMapsTests {
+  static final class BinarySearchArrayPrefixMapTests implements PrefixMappersTests {
     @Override
-    public ImmutablePrefixMap<Integer> newPrefixMap(final Map<String, Integer> prefixes) {
-      return binarySearchArrayPrefixMap(prefixes);
+    public ImmutablePrefixMapping<Integer> newPrefixMap(final Map<String, Integer> prefixes) {
+      return binarySearchArrayPrefixMapping(prefixes);
     }
 
     @CsvSource(
@@ -404,7 +405,7 @@ final class FixCollectionsTests {
         final int longestMatchStepsEvenKeys,
         final int firstMatchStepsOddKeys,
         final int longestMatchStepsOddKeys) {
-      PrefixMapsTests.super.detects_prefixes_with_minimal_steps(
+      PrefixMappersTests.super.detects_prefixes_with_minimal_steps(
           string,
           firstMatchEvenKeys,
           firstMatchOddKeys,
@@ -415,10 +416,10 @@ final class FixCollectionsTests {
     }
   }
 
-  static final class BinarySearchArraySuffixMapTests implements SuffixMapsTests {
+  static final class BinarySearchArraySuffixMapTests implements SuffixMappersTests {
     @Override
-    public ImmutableSuffixMap<Integer> newSuffixMap(final Map<String, Integer> suffixes) {
-      return binarySearchArraySuffixMap(suffixes);
+    public ImmutableSuffixMapping<Integer> newSuffixMap(final Map<String, Integer> suffixes) {
+      return binarySearchArraySuffixMapping(suffixes);
     }
 
     @CsvSource(
@@ -436,7 +437,7 @@ final class FixCollectionsTests {
         final int longestMatchStepsEvenKeys,
         final int firstMatchStepsOddKeys,
         final int longestMatchStepsOddKeys) {
-      SuffixMapsTests.super.detects_suffixes_with_minimal_steps(
+      SuffixMappersTests.super.detects_suffixes_with_minimal_steps(
           string,
           firstMatchEvenKeys,
           firstMatchOddKeys,
@@ -447,10 +448,10 @@ final class FixCollectionsTests {
     }
   }
 
-  static final class LimitedCharArrayTriePrefixMapTests implements PrefixMapsTests {
+  static final class LimitedCharArrayTriePrefixMapTests implements PrefixMappersTests {
     @Override
-    public ImmutablePrefixMap<Integer> newPrefixMap(final Map<String, Integer> prefixes) {
-      return limitedCharArrayTriePrefixMap('a', 'z', prefixes);
+    public ImmutablePrefixMapping<Integer> newPrefixMap(final Map<String, Integer> prefixes) {
+      return limitedCharArrayTriePrefixMapping('a', 'z', prefixes);
     }
 
     @CsvSource(
@@ -468,7 +469,7 @@ final class FixCollectionsTests {
         final int longestMatchStepsEvenKeys,
         final int firstMatchStepsOddKeys,
         final int longestMatchStepsOddKeys) {
-      PrefixMapsTests.super.detects_prefixes_with_minimal_steps(
+      PrefixMappersTests.super.detects_prefixes_with_minimal_steps(
           string,
           firstMatchEvenKeys,
           firstMatchOddKeys,
@@ -479,10 +480,10 @@ final class FixCollectionsTests {
     }
   }
 
-  static final class LimitedCharArrayTrieSuffixMapTests implements SuffixMapsTests {
+  static final class LimitedCharArrayTrieSuffixMapTests implements SuffixMappersTests {
     @Override
-    public ImmutableSuffixMap<Integer> newSuffixMap(final Map<String, Integer> suffixes) {
-      return limitedCharArrayTrieSuffixMap('a', 'z', suffixes);
+    public ImmutableSuffixMapping<Integer> newSuffixMap(final Map<String, Integer> suffixes) {
+      return limitedCharArrayTrieSuffixMapping('a', 'z', suffixes);
     }
 
     @CsvSource(
@@ -500,7 +501,7 @@ final class FixCollectionsTests {
         final int longestMatchStepsEvenKeys,
         final int firstMatchStepsOddKeys,
         final int longestMatchStepsOddKeys) {
-      SuffixMapsTests.super.detects_suffixes_with_minimal_steps(
+      SuffixMappersTests.super.detects_suffixes_with_minimal_steps(
           string,
           firstMatchEvenKeys,
           firstMatchOddKeys,
@@ -511,12 +512,12 @@ final class FixCollectionsTests {
     }
   }
 
-  static final class LimitedCharArrayTrieFixMapTests {
+  static final class LimitedCharArrayTrieFixMapperTests {
 
     @CsvSource({"0,0", "1,1", "2,2", "3,4", "4,4", "5,8", "6,8", "7,8", "8,8", "9,16", "16,16"})
     @ParameterizedTest
     void gets_next_power_of_2(final int i, final int expectedPowerOf2) {
-      assertEquals(expectedPowerOf2, LimitedCharArrayTrieFixMap.nextPowerOf2(i));
+      assertEquals(expectedPowerOf2, LimitedCharArrayTrieFixMapping.nextPowerOf2(i));
     }
 
     @CsvSource({
@@ -524,13 +525,13 @@ final class FixCollectionsTests {
     })
     @ParameterizedTest
     void gets_next_prev_of_2(final int i, final int expectedPowerOf2) {
-      assertEquals(expectedPowerOf2, LimitedCharArrayTrieFixMap.prevPowerOf2(i));
+      assertEquals(expectedPowerOf2, LimitedCharArrayTrieFixMapping.prevPowerOf2(i));
     }
 
     @CsvSource({"a,0", "b,0", "c,1", "d,32", "e,64"})
     @ParameterizedTest
     void gets_index_from_char(final char char_, final int offset) {
-      assertEquals(char_ - offset, LimitedCharArrayTrieFixMap.toIndex(char_, offset));
+      assertEquals(char_ - offset, LimitedCharArrayTrieFixMapping.toIndex(char_, offset));
     }
   }
 
@@ -574,5 +575,5 @@ final class FixCollectionsTests {
         .orElse(null);
   }
 
-  private FixCollectionsTests() {}
+  private FixMappingsTests() {}
 }

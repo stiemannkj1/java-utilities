@@ -1,3 +1,3 @@
-package dev.stiemannkj1.annotations;
+package dev.stiemannkj1.annotation;
 
 public @interface VisibleForTesting {}
