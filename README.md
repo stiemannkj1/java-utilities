@@ -4,6 +4,8 @@ Assorted Java utilities.
 
 ## Using
 
+[![Release](https://jitpack.io/v/stiemannkj1/java-utilities.svg)](https://jitpack.io/#java-utilities)
+
 Add the project as a Gradle dependency via [jitpack.io](https://jitpack.io/):
 
 ```
@@ -19,7 +21,7 @@ mavenCentral {
   content { excludeGroupByRegex "com[.]github[.]stiemannkj1.*" }
 }
 
-implementation 'com.github.stiemannkj1:java-utilities:0.4'
+implementation 'com.github.stiemannkj1:java-utilities:0.5.0'
 ```
 
 ## Building
