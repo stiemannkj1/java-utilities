@@ -66,7 +66,11 @@ class BinarySearchArrayFixMapping<T> implements FixMappings.FixMapping<T> {
         (pair1, pair2) -> {
           final int compareTo =
               compareFix(
-                  forPrefix, pair1.first.length() > pair2.first.length(), pair2.first, pair1.first);
+                  forPrefix,
+                  pair1.first.length() > pair2.first.length(),
+                  pair2.first,
+                  pair1.first,
+                  null);
 
           if (pair1.first.length() == pair2.first.length() && compareTo == 0) {
             throw new IllegalArgumentException("Duplicate keys found for: " + pair1.first);
@@ -100,16 +104,13 @@ class BinarySearchArrayFixMapping<T> implements FixMappings.FixMapping<T> {
 
     while (min <= max) {
 
-      if (debugSearchSteps != null) {
-        debugSearchSteps.incrementAndGet();
-      }
-
       // TODO change to bitwise division
       bisect = ((max - min) / 2) + min;
 
       final Pair<String, T> fixPair = sortedFixes.get(bisect);
       final String fix = fixPair.first;
-      int compareTo = compareFix(forPrefix, fix.length() > string.length(), string, fix);
+      int compareTo =
+          compareFix(forPrefix, fix.length() > string.length(), string, fix, debugSearchSteps);
 
       if (compareTo == 0) {
 
@@ -142,16 +143,43 @@ class BinarySearchArrayFixMapping<T> implements FixMappings.FixMapping<T> {
       final boolean forPrefix,
       final boolean fixLargerThanSearchString,
       final String string,
-      final String fix) {
+      final String fix,
+      final AtomicLong debugSearchSteps) {
+
+    final int length = Math.min(string.length(), fix.length());
 
     if (forPrefix) {
-      return fixLargerThanSearchString
-          ? string.compareTo(fix.substring(0, string.length()))
-          : string.substring(0, fix.length()).compareTo(fix);
+      return compareSubstring(string, fix, 0, 0, length, debugSearchSteps);
     }
 
     return fixLargerThanSearchString
-        ? string.compareTo(fix.substring(fix.length() - string.length()))
-        : string.substring(string.length() - fix.length()).compareTo(fix);
+        ? compareSubstring(string, fix, 0, fix.length() - string.length(), length, debugSearchSteps)
+        : compareSubstring(
+            string, fix, string.length() - fix.length(), 0, length, debugSearchSteps);
+  }
+
+  private static int compareSubstring(
+      final String string,
+      final String fix,
+      final int stringStart,
+      final int fixStart,
+      final int end,
+      final AtomicLong debugSearchSteps) {
+
+    for (int i = 0; i < end; i++) {
+
+      if (debugSearchSteps != null) {
+        debugSearchSteps.incrementAndGet();
+      }
+
+      final char stringChar = string.charAt(stringStart + i);
+      final char fixChar = fix.charAt(fixStart + i);
+
+      if (stringChar != fixChar) {
+        return stringChar - fixChar;
+      }
+    }
+
+    return 0;
   }
 }

@@ -392,8 +392,8 @@ final class FixMappingsTests {
 
     @CsvSource(
         value = {
-          "abdicate,abd,abdicate,1,2,1,1",
-          "abdicated,abd,abdicate,1,3,1,2",
+          "abdicate,abd,abdicate,3,11,8,8",
+          "abdicated,abd,abdicate,3,14,8,11",
         })
     @ParameterizedTest
     @Override
@@ -424,8 +424,8 @@ final class FixMappingsTests {
 
     @CsvSource(
         value = {
-          "abdicate,abdicate,ate,1,1,2,3",
-          "i abdicate,abdicate,ate,1,2,2,3",
+          "abdicate,abdicate,ate,8,8,5,13",
+          "i abdicate,abdicate,ate,8,10,5,13",
         })
     @ParameterizedTest
     @Override
