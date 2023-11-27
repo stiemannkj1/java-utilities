@@ -24,7 +24,15 @@ implementation 'com.github.stiemannkj1:java-utilities:0.4'
 
 ## Building
 
-Install Java 11 and Gradle 7.
+Install Java 11 and Gradle 7. If you already have another version of Gradle
+installed, you can install the correct version of Gradle via:
+
+```
+gradle wrapper
+```
+
+If you use Gradle Wrapper to build the project, you'll need to use `./gradlew`
+instead of `gradle` in the following commands.
 
 Build a `.jar` with:
 
