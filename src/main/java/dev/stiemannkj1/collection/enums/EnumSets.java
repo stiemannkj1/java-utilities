@@ -9,7 +9,11 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public final class EnumSets {
 
-  public static final Object[] EMPTY_ARRAY = new Object[0];
+  private static final Object[] EMPTY_ARRAY = new Object[0];
+
+  public static <T extends Enum<T>> Set<T> atomic(final Class<T> enumClass) {
+    return new AtomicLongEnumBitSet<>(enumClass);
+  }
 
   // TODO add class for larger enum sets using AtomicIntegerArray
   // TODO add tests
@@ -17,10 +21,10 @@ public final class EnumSets {
 
     private final AtomicLong enumBitSet = new AtomicLong(0);
     private final Enum<T>[] values;
-    private final Class<Enum<T>> enumClass;
+    private final Class<T> enumClass;
     private volatile int maxToStringLength;
 
-    private AtomicLongEnumBitSet(final Class<Enum<T>> enumClass) {
+    private AtomicLongEnumBitSet(final Class<T> enumClass) {
       this.enumClass = Objects.requireNonNull(enumClass);
       this.values = enumClass.getEnumConstants();
 
@@ -80,8 +84,16 @@ public final class EnumSets {
       return value;
     }
 
+    static long ordinalToBitSet(final long ordinal) {
+      return 1L << ordinal;
+    }
+
+    static boolean containsBitSet(final long enumBitSet, final long otherBitSet) {
+      return (enumBitSet & otherBitSet) > 0;
+    }
+
     static boolean containsOrdinal(final long enumBitSet, final long enumOrdinal) {
-      return (enumBitSet & (1 >> enumOrdinal)) > 0;
+      return (enumBitSet & ordinalToBitSet(enumOrdinal)) > 0;
     }
 
     /**
@@ -145,9 +157,9 @@ public final class EnumSets {
 
       final int ordinal = value.ordinal();
 
-      final long singleValueBitSet = 1 >> ordinal;
+      final long singleValueBitSet = ordinalToBitSet(ordinal);
 
-      return !containsOrdinal(getAndAddValues(singleValueBitSet), ordinal);
+      return !containsBitSet(getAndAddValues(singleValueBitSet), singleValueBitSet);
     }
 
     private long getAndAddValues(final long valuesToAddBitSet) {
@@ -169,13 +181,14 @@ public final class EnumSets {
 
     private boolean removeByOrdinal(final int ordinal) {
 
-      final long allExceptOrdinalBitSet = ~((long) (1 >> ordinal));
+      final long singleValueBitSet = ordinalToBitSet(ordinal);
+      final long allExceptOrdinalBitSet = ~(singleValueBitSet);
 
-      return containsOrdinal(
+      return containsBitSet(
           enumBitSet.getAndAccumulate(
               allExceptOrdinalBitSet,
-              (originalEnumBitSet, nonOrdinalBitSet) -> originalEnumBitSet ^ nonOrdinalBitSet),
-          ordinal);
+              (originalEnumBitSet, nonOrdinalBitSet) -> originalEnumBitSet & nonOrdinalBitSet),
+          singleValueBitSet);
     }
 
     @Override
@@ -191,7 +204,7 @@ public final class EnumSets {
     }
 
     private static boolean containsAll(final long enumBitSet, final long otherBitSet) {
-      return ((enumBitSet ^ ~otherBitSet) & otherBitSet) > 0;
+      return (enumBitSet & otherBitSet) == otherBitSet;
     }
 
     private long toBitSet(final Collection<?> c, final boolean ignoreInvalid) {
@@ -232,7 +245,7 @@ public final class EnumSets {
         @SuppressWarnings("unchecked")
         final Enum<T> enumValue = (Enum<T>) value;
 
-        otherBitSet = (otherBitSet | enumValue.ordinal());
+        otherBitSet = (otherBitSet | ordinalToBitSet(enumValue.ordinal()));
       }
 
       return otherBitSet;
@@ -301,7 +314,7 @@ public final class EnumSets {
     @Override
     public boolean equals(Object obj) {
 
-      if (!(obj instanceof Collection)) {
+      if (!(obj instanceof Set)) {
         return false;
       }
 
@@ -317,9 +330,8 @@ public final class EnumSets {
 
       if (this.maxToStringLength == 0) {
         int maxToStringLength =
-            2
-                + // "[]".length()
-                values.length; // (",".length() * values.length)
+            2 // "[]".length()
+                + values.length; // (",".length() * values.length)
 
         for (Enum<T> value : values) {
           maxToStringLength += value.name().length();
@@ -340,7 +352,7 @@ public final class EnumSets {
         if (stringBuilder.length() == 0) {
           stringBuilder.append('[');
         } else {
-          stringBuilder.append(',');
+          stringBuilder.append(',').append(' ');
         }
 
         stringBuilder.append(values[ordinal].name());
