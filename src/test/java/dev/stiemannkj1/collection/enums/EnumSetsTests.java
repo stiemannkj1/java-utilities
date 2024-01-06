@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -231,7 +232,78 @@ public final class EnumSetsTests {
     assertEquals(new HashSet<>(Arrays.asList(MyEnum.FOO, MyEnum.BAZ)), enumSet);
   }
 
-  // TODO test iterator
+  @Test
+  void test_atomic_enum_set_iterator() {
+
+    final Set<MyEnum> enumSet = EnumSets.atomic(MyEnum.class);
+
+    enumSet.add(MyEnum.FOO);
+    enumSet.add(MyEnum.BAR);
+    enumSet.add(MyEnum.BAZ);
+
+    Iterator<MyEnum> expectedIterator =
+        Arrays.asList(MyEnum.FOO, MyEnum.BAR, MyEnum.BAZ).iterator();
+    Iterator<MyEnum> actualIterator = enumSet.iterator();
+
+    while (expectedIterator.hasNext()) {
+      assertTrue(actualIterator.hasNext());
+      assertEquals(actualIterator.next(), expectedIterator.next());
+    }
+
+    expectedIterator = Arrays.asList(MyEnum.FOO, MyEnum.BAR, MyEnum.BAZ).iterator();
+
+    for (final MyEnum myEnum : enumSet) {
+      assertTrue(expectedIterator.hasNext());
+      assertEquals(expectedIterator.next(), myEnum);
+    }
+
+    expectedIterator = Arrays.asList(MyEnum.FOO, MyEnum.BAR, MyEnum.BAZ).iterator();
+
+    actualIterator = enumSet.iterator();
+
+    while (expectedIterator.hasNext()) {
+
+      assertTrue(actualIterator.hasNext());
+      final MyEnum expectedNext = expectedIterator.next();
+      assertEquals(actualIterator.next(), expectedNext);
+
+      if (expectedNext == MyEnum.BAR) {
+        actualIterator.remove();
+      }
+    }
+
+    // Removals affect the original hash set.
+    assertEquals(enumSet, new HashSet<>(Arrays.asList(MyEnum.FOO, MyEnum.BAZ)));
+
+    expectedIterator = Arrays.asList(MyEnum.FOO, MyEnum.BAZ).iterator();
+    actualIterator = enumSet.iterator();
+
+    while (expectedIterator.hasNext()) {
+      assertTrue(actualIterator.hasNext());
+      assertEquals(actualIterator.next(), expectedIterator.next());
+    }
+
+    enumSet.add(MyEnum.BAR);
+    expectedIterator = Arrays.asList(MyEnum.FOO, MyEnum.BAR, MyEnum.BAZ).iterator();
+
+    actualIterator = enumSet.iterator();
+
+    while (expectedIterator.hasNext()) {
+
+      assertTrue(actualIterator.hasNext());
+      final MyEnum expectedNext = expectedIterator.next();
+      assertEquals(actualIterator.next(), expectedNext);
+
+      if (expectedNext == MyEnum.BAR) {
+        enumSet.remove(MyEnum.BAR);
+
+        // Already removed item is ignored.
+        actualIterator.remove();
+      }
+    }
+
+    assertEquals(enumSet, new HashSet<>(Arrays.asList(MyEnum.FOO, MyEnum.BAZ)));
+  }
 
   private static <E extends Enum<E>> Set<E> atomicEnumSet(final Class<E> enumClass, final E e1) {
     final Set<E> enumSet = EnumSets.atomic(enumClass);

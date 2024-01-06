@@ -16,7 +16,6 @@ public final class EnumSets {
   }
 
   // TODO add class for larger enum sets using AtomicIntegerArray
-  // TODO add tests
   private static final class AtomicLongEnumBitSet<T extends Enum<T>> implements Set<T> {
 
     private final AtomicLong enumBitSet = new AtomicLong(0);
@@ -34,14 +33,12 @@ public final class EnumSets {
                 + " has no enum values. Use Collections.emptySet() for empty collections.");
       }
 
-      final int maxEnumValues = Long.BYTES * 8;
-
-      if (values.length > maxEnumValues) {
+      if (values.length > Long.SIZE) {
         throw new IllegalArgumentException(
             "Cannot use "
                 + AtomicLongEnumBitSet.class.getSimpleName()
                 + " for enums with more than "
-                + maxEnumValues
+                + Long.SIZE
                 + " values. "
                 + enumClass.getSimpleName()
                 + " has "
@@ -89,11 +86,11 @@ public final class EnumSets {
     }
 
     static boolean containsBitSet(final long enumBitSet, final long otherBitSet) {
-      return (enumBitSet & otherBitSet) > 0;
+      return (enumBitSet & otherBitSet) != 0;
     }
 
     static boolean containsOrdinal(final long enumBitSet, final long enumOrdinal) {
-      return (enumBitSet & ordinalToBitSet(enumOrdinal)) > 0;
+      return (enumBitSet & ordinalToBitSet(enumOrdinal)) != 0;
     }
 
     /**
@@ -283,7 +280,7 @@ public final class EnumSets {
       return (enumBitSet.getAndAccumulate(
                   otherBitSet, (originalBitSet, _otherBitSet) -> originalBitSet & _otherBitSet)
               & ~otherBitSet)
-          > 0;
+          != 0;
     }
 
     @Override
@@ -298,7 +295,7 @@ public final class EnumSets {
       return (enumBitSet.getAndAccumulate(
                   otherBitSet, (originalBitSet, _otherBitSet) -> originalBitSet & ~_otherBitSet)
               & otherBitSet)
-          > 0;
+          != 0;
     }
 
     @Override
@@ -365,65 +362,44 @@ public final class EnumSets {
   private static final class AtomicLongEnumBitSetIterator<T extends Enum<T>>
       implements Iterator<T> {
 
-    private final long initialEnumBitSet;
     private final AtomicLongEnumBitSet<T> enumBitSet;
-    private byte ordinal;
-    private byte lastOrdinal;
+    private long enumBitSetCopy;
+    private int currentOrdinal;
 
-    public AtomicLongEnumBitSetIterator(final AtomicLongEnumBitSet<T> enumBitSet) {
+    private AtomicLongEnumBitSetIterator(final AtomicLongEnumBitSet<T> enumBitSet) {
       this.enumBitSet = Objects.requireNonNull(enumBitSet);
-      this.initialEnumBitSet = enumBitSet.enumBitSet.get();
-      next(false);
-      lastOrdinal = Long.BYTES;
+      this.enumBitSetCopy = enumBitSet.enumBitSet.get();
+      this.currentOrdinal = Long.SIZE;
     }
 
     @Override
     public boolean hasNext() {
-      return ordinal < Long.BYTES;
+      return enumBitSetCopy != 0;
     }
 
     @Override
     public T next() {
-      return next(true);
-    }
 
-    private T next(final boolean throwing) {
-      T next = null;
+      currentOrdinal = Long.numberOfTrailingZeros(enumBitSetCopy);
+      enumBitSetCopy = enumBitSetCopy & (-1L << (currentOrdinal + 1));
 
-      lastOrdinal = ordinal;
-
-      for (; ordinal < Long.BYTES; ordinal++) {
-
-        if (!AtomicLongEnumBitSet.containsOrdinal(initialEnumBitSet, ordinal)) {
-          continue;
-        }
-
-        if (next != null) {
-          break;
-        }
-
-        @SuppressWarnings("unchecked")
-        final T value = (T) enumBitSet.values[ordinal];
-        next = value;
-
-        // Continue looking for the next element for hasNext().
-      }
-
-      if (throwing && next == null) {
+      if (currentOrdinal >= Long.SIZE) {
         throw new NoSuchElementException();
       }
 
-      return next;
+      @SuppressWarnings("unchecked")
+      final T value = (T) enumBitSet.values[currentOrdinal];
+      return value;
     }
 
     @Override
     public void remove() {
 
-      if (lastOrdinal >= Long.BYTES) {
+      if (currentOrdinal >= Long.SIZE) {
         throw new IllegalStateException();
       }
 
-      enumBitSet.removeByOrdinal(lastOrdinal);
+      enumBitSet.removeByOrdinal(currentOrdinal);
     }
   }
 
