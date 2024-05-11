@@ -1,16 +1,16 @@
 package dev.stiemannkj1.allocator;
 
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 public final class Allocators {
 
     public static final Allocator JVM_HEAP = new JvmHeap();
 
-    public interface Allocator {
+    public interface Allocator extends AutoCloseable {
         boolean[] allocateBooleans(final int size);
         byte[] allocateBytes(final int size);
         short[] allocateShorts(final int size);
@@ -21,11 +21,21 @@ public final class Allocators {
         char[] allocateChars(final int size);
         StringBuilder allocateStringBuilder(final int size);
         <T> T allocateObject(final Function<Allocator, T> noArgsConstructor);
-        <T> List<T> allocateObjects(final int size);
-        <T> List<T> allocateObjectsWithFixedSize(final int size);
+        <T> List<T> allocateList(final int size);
+        <T> List<T> allocateListWithFixedSize(final int size);
+        void deallocateObject(final Object object);
+        Allocator scopeAllocator();
+
+        /**
+         * Alias for {@link #closeScope()}.
+         */
+        default void close() {
+          closeScope();
+        }
+        void closeScope();
     }
 
-   public static final class JvmHeap implements Allocator {
+   private static final class JvmHeap implements Allocator {
        private JvmHeap() {}
 
        @Override
@@ -79,15 +89,30 @@ public final class Allocators {
       }
 
       @Override
-      public <T> List<T> allocateObjects(final int size) {
+      public <T> List<T> allocateList(final int size) {
            return new ArrayList<>(size);
       }
 
       @Override
-       public <T> List<T> allocateObjectsWithFixedSize(final int size) {
+       public <T> List<T> allocateListWithFixedSize(final int size) {
            @SuppressWarnings("unchecked")
            final List<T> objects = Arrays.asList((T[]) new Object[size]);
            return objects;
+      }
+
+      @Override
+       public void deallocateObject(final Object object) {
+           // no-op
+      }
+
+      @Override
+       public Allocator scopeAllocator() {
+           return this;
+      }
+
+      @Override
+       public void closeScope() {
+           // no-op
       }
    }
 

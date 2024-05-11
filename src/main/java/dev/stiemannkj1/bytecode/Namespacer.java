@@ -1,6 +1,8 @@
 package dev.stiemannkj1.bytecode;
 
 import dev.stiemannkj1.allocator.Allocators.Allocator;
+import dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray;
+import dev.stiemannkj1.util.Assert;
 import dev.stiemannkj1.util.Pair;
 
 import java.nio.charset.StandardCharsets;
@@ -13,78 +15,81 @@ import static dev.stiemannkj1.util.Assert.assertTrue;
 
 public final class Namespacer {
 
-    public static String namespace(final Allocator allocator, final String fileName, final byte[] classFileBefore, final Map<String, String> replacementsMap, final GrowableByteWriter writer) {
+    public static String namespace(final Allocator allocator, final String fileName, final byte[] classFileBefore, final Map<String, String> replacementsMap, final GrowableByteArray classFileAfter) {
 
-        final List<Pair<byte[], byte[]>> replacements = allocator.allocateObjects(replacementsMap.size());
+            final List<Pair<byte[], byte[]>> replacements = allocator.allocateList(replacementsMap.size());
+            // defer$(() -> allocator.deallocateObject(replacements));
 
-        for (final Map.Entry<String, String> entry : replacementsMap.entrySet()) {
-           replacements.add(Pair.of(entry.getKey().getBytes(StandardCharsets.UTF_8), entry.getValue().getBytes(StandardCharsets.UTF_8)));
-        }
-
-        final ByteParser parser = allocator.allocateObject(ByteParser::new);
-        ByteParser.reset(parser, classFileBefore, fileName);
-
-        ByteParser.consumeRequired(parser, 0xCAFEBABE);
-        parser.currentIndex += 4; // Skip major and minor versions.
-        final int constant_pool_count = (int) ByteParser.consumeUnsignedBytes(parser, 2);
-        GrowableByteWriter.write(writer, classFileBefore, 0, parser.currentIndex - 1);
-
-        for (int i = 0; i < constant_pool_count; i++) {
-
-            if (!ByteParser.shouldContinue(parser)) {
-                break;
+            for (final Map.Entry<String, String> entry : replacementsMap.entrySet()) {
+                replacements.add(Pair.of(entry.getKey().getBytes(StandardCharsets.UTF_8), entry.getValue().getBytes(StandardCharsets.UTF_8)));
             }
 
-            final int constantStartIndex = parser.currentIndex;
+            final ByteParser parser = allocator.allocateObject(ByteParser::new);
+            ByteParser.reset(parser, classFileBefore, fileName);
 
-            short cp_info_tag = (short) ByteParser.consumeUnsignedBytes(parser, 1);
+            ByteParser.consumeRequired(parser, 0xCAFEBABE);
+            parser.currentIndex += 4; // Skip major and minor versions.
+            final int constant_pool_count = (int) ByteParser.consumeUnsignedBytes(parser, 2);
+            final Writer writer = allocator.allocateObject(Writer::new);
+            Writer.initialize(writer, classFileAfter, fileName);
+            Writer.write(writer, classFileBefore, 0, parser.currentIndex - 1);
 
-            final ConstantPoolTag tag;
+            for (int i = 0; i < constant_pool_count; i++) {
 
-            if (cp_info_tag > ConstantPoolTag.VALUES.length) {
-                tag = ConstantPoolTag.CONSTANT_Unused_2;
-            } else {
-                tag = ConstantPoolTag.VALUES[cp_info_tag];
-            }
-
-            final int length = consumeCpInfoLength(parser, tag, cp_info_tag);
-
-            if (ConstantPoolTag.CONSTANT_Utf8 != tag) {
-                parser.currentIndex += length;
-                GrowableByteWriter.write(writer, classFileBefore, constantStartIndex, length);
-
-                continue;
-            }
-
-            replacing:
-            for (final Pair<byte[], byte[]> replacement : replacements) {
-
-                for (int j = 0; j < replacement.left().length; j++) {
-                    if (replacement.left()[j] != classFileBefore[parser.currentIndex + j]) {
-                        continue replacing;
-                    }
+                if (!ByteParser.shouldContinue(parser)) {
+                    break;
                 }
 
-                GrowableByteWriter.write(writer, replacement.right(), 0, replacement.right().length);
-                parser.currentIndex += replacement.left().length;
-                final int remainingLength = length - replacement.left().length;
-                GrowableByteWriter.write(writer, parser.bytes, parser.currentIndex, remainingLength);
-                // TODO add simple test for feedback
-                // TODO fix bugs
-                // TODO add complex tests with field refs, method refs, lambdas, invokedynamic, method descriptors etc.
-                break;
+                final int constantStartIndex = parser.currentIndex;
+
+                short cp_info_tag = (short) ByteParser.consumeUnsignedBytes(parser, 1);
+
+                final ConstantPoolTag tag;
+
+                if (cp_info_tag > ConstantPoolTag.VALUES.length) {
+                    tag = ConstantPoolTag.CONSTANT_Unused_2;
+                } else {
+                    tag = ConstantPoolTag.VALUES[cp_info_tag];
+                }
+
+                final int length = consumeCpInfoLength(parser, tag, cp_info_tag);
+
+                if (ConstantPoolTag.CONSTANT_Utf8 != tag) {
+                    parser.currentIndex += length;
+                    Writer.write(writer, classFileBefore, constantStartIndex, length);
+
+                    continue;
+                }
+
+                replacing:
+                for (final Pair<byte[], byte[]> replacement : replacements) {
+
+                    for (int j = 0; j < replacement.left().length; j++) {
+                        if (replacement.left()[j] != classFileBefore[parser.currentIndex + j]) {
+                            continue replacing;
+                        }
+                    }
+
+                    Writer.write(writer, replacement.right(), 0, replacement.right().length);
+                    parser.currentIndex += replacement.left().length;
+                    final int remainingLength = length - replacement.left().length;
+                    Writer.write(writer, parser.bytes, parser.currentIndex, remainingLength);
+                    // TODO add simple test for feedback
+                    // TODO fix bugs
+                    // TODO add complex tests with field refs, method refs, lambdas, invokedynamic, method descriptors etc.
+                    break;
+                }
             }
-        }
 
-        if (!ByteParser.shouldContinue(parser)) {
-            return parser.errorMessage.toString();
-        }
+            if (!ByteParser.shouldContinue(parser)) {
+                return parser.errorMessage.toString();
+            }
 
-        if (GrowableByteWriter.hasError(writer)) {
-            return writer.errorMessage.toString();
-        }
+            if (Writer.hasError(writer)) {
+                return writer.errorMessage.toString();
+            }
 
-        return null;
+            return null;
     }
 
     private static int consumeCpInfoLength(final ByteParser parser, final ConstantPoolTag tag, short cp_info_tag) {
@@ -178,18 +183,18 @@ public final class Namespacer {
         }
 
         private static boolean shouldContinue(final ByteParser parser) {
-            return parser.errorMessage == null && parser.bytes.length > parser.currentIndex;
+            return parser.errorMessage.length() == 0 && parser.bytes.length > parser.currentIndex;
         }
 
         private static boolean consumeOptional(final ByteParser parser, final int i4) {
 
-            for (int i = 0; i < Integer.BYTES; i++) {
+            for (int i = (Integer.BYTES - 1); i >= 0; i--) {
 
                 if (!shouldContinue(parser)) {
                     return false;
                 }
 
-                if (((i4 << i) & 0xFF) != parser.bytes[parser.currentIndex++]) {
+                if (((byte) ((i4 >> (i * Byte.SIZE)) & 0xFF)) != parser.bytes[parser.currentIndex++]) {
                     return false;
                 }
             }
@@ -209,27 +214,21 @@ public final class Namespacer {
             }
         }
 
-        private static long consumeUnsignedBits(final ByteParser parser, final int sizeInBits) {
-
-            assertTrue(0 < sizeInBits && sizeInBits < 64, () -> "Unsigned size must fit into 63 bits, but size was " + sizeInBits);
+        private static long consumeUnsignedBytes(final ByteParser parser, final int sizeInBytes) {
+            assertTrue(0 < sizeInBytes && sizeInBytes < 8, () -> "Unsigned size must fit into 7 bytes, but size was " + sizeInBytes);
 
             long u8 = 0;
 
-            for (int i = 0; i < sizeInBits; i++) {
+            for (int i = (sizeInBytes - 1); i >= 0; i--) {
 
                 if (!shouldContinue(parser)) {
                     return 0;
                 }
 
-                u8 = (u8 | (((long) parser.bytes[parser.currentIndex++]) << (i << 3)));
+                u8 = (u8 | (((long) parser.bytes[parser.currentIndex++]) << (i * Byte.SIZE)));
             }
 
             return u8;
-        }
-
-        private static long consumeUnsignedBytes(final ByteParser parser, final int sizeInBytes) {
-            assertTrue(0 < sizeInBytes && sizeInBytes < 8, () -> "Unsigned size must fit into 7 bytes, but size was " + sizeInBytes);
-            return consumeUnsignedBits(parser, sizeInBytes * Byte.SIZE);
         }
 
         private static void consumeBytes(final ByteParser parser, final int sizeToConsume) {
@@ -244,7 +243,7 @@ public final class Namespacer {
             final int trailingBytes = Integer.BYTES - leadingBytes;
 
             for (int i = trailingBytes; i >= 0; i--) {
-                appendHexString(stringBuilder, (byte) ((i4 << i) & 0xFF));
+                appendHexString(stringBuilder, (byte) ((i4 >> i) & 0xFF));
             }
 
             return stringBuilder;
@@ -283,7 +282,7 @@ public final class Namespacer {
                 'F'
         };
 
-        private static final char[] BYTES_AS_HEX = new char[(Byte.SIZE + 1) << 1];
+        private static final char[] BYTES_AS_HEX = new char[HEX_CHARS.length << 1];
 
         static {
             for (int i = 0; i < HEX_CHARS.length; i++) {
@@ -306,60 +305,37 @@ public final class Namespacer {
         }
     }
 
-    private static final class GrowableByteWriter {
-        private Allocator allocator;
-        private byte[] bytes;
-        private int currentIndex;
+    private static final class Writer {
+        private GrowableByteArray classFileAfter;
         private String fileName;
         private StringBuilder errorMessage;
 
-        private GrowableByteWriter(final Allocator allocator) {
-            this.allocator = allocator;
-            this.bytes = allocator.allocateBytes(0);
-            this.errorMessage = allocator.allocateStringBuilder(256);
+        private Writer(final Allocator allocator) {
+            this.errorMessage = Assert.assertNotNull(allocator).allocateStringBuilder(256);
         }
 
-        private static void reset(final GrowableByteWriter writer, final int initialSize, final String fileName) {
-            writer.currentIndex = 0;
+        private static void initialize(final Writer writer, final GrowableByteArray classFileAfter, final String fileName) {
+            writer.classFileAfter = assertNotNull(classFileAfter);
             writer.fileName = assertNotEmpty(fileName);
             writer.errorMessage.setLength(0);
-            growIfNecessary(writer, initialSize);
         }
 
-        private static void write(final GrowableByteWriter writer, final byte[] bytesToWrite, final int start, final int length) {
+        private static void write(final Writer writer, final byte[] bytesToWrite, final int start, final int length) {
 
-            if (growIfNecessary(writer, (long) writer.currentIndex + length)) {
-               return;
-            }
-
-            System.arraycopy(bytesToWrite, start, writer.bytes, 0, length);
-            writer.currentIndex+=length;
-        }
-
-        private static boolean growIfNecessary(final GrowableByteWriter writer, final long minimumRequiredSize) {
+            final long minimumRequiredSize = (long) writer.classFileAfter.size + length;
 
             if (minimumRequiredSize > Integer.MAX_VALUE) {
                 writer.errorMessage.append("Failed to write bytes to ").append(writer.fileName).append(". Max Java array size exceeded.");
-                return false;
+                return;
             }
 
-            if (writer.bytes.length < minimumRequiredSize) {
-                final byte[] oldBytes = writer.bytes;
+            GrowableByteArray.growIfNecessary(writer.classFileAfter, (int) minimumRequiredSize);
 
-                int newSize = (int) minimumRequiredSize * 2;
-
-                if (newSize < 0) {
-                    newSize = Integer.MAX_VALUE;
-                }
-
-                writer.bytes = writer.allocator.allocateBytes(newSize);
-                System.arraycopy(oldBytes, 0, writer.bytes, 0, writer.currentIndex - 1);
-            }
-
-            return true;
+            System.arraycopy(bytesToWrite, start, writer.classFileAfter.array, 0, length);
+            writer.classFileAfter.size+=length;
         }
 
-        private static boolean hasError(final GrowableByteWriter writer) {
+        private static boolean hasError(final Writer writer) {
             return writer.errorMessage.length() > 0;
         }
     }
