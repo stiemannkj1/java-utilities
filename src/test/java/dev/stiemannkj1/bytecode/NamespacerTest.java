@@ -27,12 +27,14 @@ final class NamespacerTest {
         readBytes(ClassToNamespace.class, classFileBefore);
         final Map<String, String> replacement = new HashMap<>();
         replacement.put("dev.stiemannkj1.bytecode", "now.im.namespaced");
+        replacement.put("dev/stiemannkj1/bytecode", "now/im/namespaced");
+        replacement.put("Ldev/stiemannkj1/bytecode", "Lnow/im/namespaced");
         final ClassGenerator classGenerator = new ClassGenerator(this.getClass().getClassLoader());
         final GrowableByteArray classFileAfter = Allocators.JVM_HEAP.allocateObject(GrowableByteArray::new);
         assertNull(Namespacer.namespace(Allocators.JVM_HEAP, classNameToPath(ClassToNamespace.class), classFileBefore, replacement, classFileAfter));
 
         try {
-            final Class<?> namespacedClass = classGenerator.generateClass(ClassToNamespace.class.getTypeName(), bytes(classFileAfter), 0, size(classFileAfter));
+            final Class<?> namespacedClass = classGenerator.generateClass("now.im.namespaced.NamespacerTest$ClassToNamespace", bytes(classFileAfter), 0, size(classFileAfter));
             assertEquals("now.im.namespaced.NamespacerTest$ClassToNamespace", namespacedClass.getTypeName());
             assertEquals("now.im.namespaced.toString", namespacedClass.getDeclaredConstructor().newInstance().toString());
         } catch (final Throwable t) {
