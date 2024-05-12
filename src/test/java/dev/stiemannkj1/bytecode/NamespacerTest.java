@@ -5,9 +5,11 @@ import dev.stiemannkj1.collection.arrays.GrowableArrays;
 import dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray;
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -18,15 +20,29 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 final class NamespacerTest {
 
     @Test
-    void it_namespaces_class() throws ReflectiveOperationException {
+    void it_namespaces_class() throws Throwable {
         final Map<String, String> replacement = new HashMap<>();
         replacement.put("dev.stiemannkj1.bytecode", "now.im.namespaced");
         final ClassGenerator classGenerator = new ClassGenerator(this.getClass().getClassLoader());
         final GrowableByteArray classFileAfter = Allocators.JVM_HEAP.allocateObject(GrowableByteArray::new);
         assertNull(Namespacer.namespace(Allocators.JVM_HEAP, classNameToPath(ClassToNamespace.class), readBytes(ClassToNamespace.class), replacement, classFileAfter));
-        final Class<?> namespacedClass = classGenerator.generateClass(ClassToNamespace.class.getTypeName(), classFileAfter.array, 0, classFileAfter.size);
-       assertEquals("now.im.namespaced.NamespacerTest$ClassToNamespace", namespacedClass.getTypeName());
-        assertEquals("now.im.namespaced.toString", namespacedClass.getDeclaredConstructor().newInstance().toString());
+
+        try {
+            final Class<?> namespacedClass = classGenerator.generateClass(ClassToNamespace.class.getTypeName(), classFileAfter.array, 0, classFileAfter.size);
+            assertEquals("now.im.namespaced.NamespacerTest$ClassToNamespace", namespacedClass.getTypeName());
+            assertEquals("now.im.namespaced.toString", namespacedClass.getDeclaredConstructor().newInstance().toString());
+        } catch (final Throwable t) {
+            try {
+                final byte[] failedClass = new byte[classFileAfter.size];
+                System.arraycopy(classFileAfter.array, 0, failedClass, 0, classFileAfter.size);
+                final File failedClassFile = new File(System.getProperty("project.build.dir") + File.separator + this.getClass().getSimpleName() + File.separator + ClassToNamespace.class.getTypeName().replace(".", File.separator) + ".class");
+                final boolean ignored = failedClassFile.getParentFile().mkdirs();
+                Files.write(failedClassFile.toPath(), failedClass);
+            } catch (final IOException e) {
+                t.addSuppressed(e);
+            }
+           throw t;
+        }
     }
 
     private static String classNameToPath(final Class<?> aClass) {

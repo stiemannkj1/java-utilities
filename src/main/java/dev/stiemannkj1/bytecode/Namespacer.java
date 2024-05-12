@@ -15,6 +15,8 @@ import static dev.stiemannkj1.util.Assert.assertTrue;
 
 public final class Namespacer {
 
+    public static final int CONSTANT_UTF8_INFO_HEADER_SIZE = 3;
+
     public static String namespace(final Allocator allocator, final String fileName, final byte[] classFileBefore, final Map<String, String> replacementsMap, final GrowableByteArray classFileAfter) {
 
             final List<Pair<byte[], byte[]>> replacements = allocator.allocateList(replacementsMap.size());
@@ -29,10 +31,10 @@ public final class Namespacer {
 
             ByteParser.consumeRequired(parser, 0xCAFEBABE);
             parser.currentIndex += 4; // Skip major and minor versions.
-            final int constant_pool_count = (int) ByteParser.consumeUnsignedBytes(parser, 2);
+            final int constant_pool_count = (int) ByteParser.consumeUnsignedBytes(parser, 2) - 1;
             final Writer writer = allocator.allocateObject(Writer::new);
             Writer.initialize(writer, classFileAfter, fileName);
-            Writer.write(writer, classFileBefore, 0, parser.currentIndex - 1);
+            Writer.write(writer, classFileBefore, 0, parser.currentIndex);
 
             for (int i = 0; i < constant_pool_count; i++) {
 
@@ -42,7 +44,7 @@ public final class Namespacer {
 
                 final int constantStartIndex = parser.currentIndex;
 
-                short cp_info_tag = (short) ByteParser.consumeUnsignedBytes(parser, 1);
+                final short cp_info_tag = (short) ByteParser.consumeUnsignedBytes(parser, 1);
 
                 final ConstantPoolTag tag;
 
@@ -56,10 +58,13 @@ public final class Namespacer {
 
                 if (ConstantPoolTag.CONSTANT_Utf8 != tag) {
                     parser.currentIndex += length;
-                    Writer.write(writer, classFileBefore, constantStartIndex, length);
+                    Writer.write(writer, classFileBefore, constantStartIndex, length + 1);
 
                     continue;
                 }
+
+                int finalLength = length;
+                int remainingLength = length;
 
                 replacing:
                 for (final Pair<byte[], byte[]> replacement : replacements) {
@@ -71,14 +76,26 @@ public final class Namespacer {
                     }
 
                     Writer.write(writer, replacement.right(), 0, replacement.right().length);
-                    parser.currentIndex += replacement.left().length;
-                    final int remainingLength = length - replacement.left().length;
-                    Writer.write(writer, parser.bytes, parser.currentIndex, remainingLength);
+                    remainingLength = length - replacement.left().length;
+                    finalLength = replacement.right().length + remainingLength;
                     // TODO add simple test for feedback
                     // TODO fix bugs
                     // TODO add complex tests with field refs, method refs, lambdas, invokedynamic, method descriptors etc.
                     break;
                 }
+
+                if (remainingLength < length) {
+                    parser.currentIndex += (length - remainingLength);
+                    GrowableByteArray.growIfNecessary(classFileAfter, classFileAfter.size + CONSTANT_UTF8_INFO_HEADER_SIZE);
+                    classFileAfter.array[classFileAfter.size++] = ConstantPoolTag.CONSTANT_Utf8.ordinal;
+                    // TODO write size here
+                } else {
+                    Writer.write(writer, classFileBefore, constantStartIndex, CONSTANT_UTF8_INFO_HEADER_SIZE);
+                }
+
+                final int start = parser.currentIndex;
+                parser.currentIndex += remainingLength;
+                Writer.write(writer, parser.bytes, start, remainingLength);
             }
 
             if (!ByteParser.shouldContinue(parser)) {
@@ -142,6 +159,7 @@ public final class Namespacer {
     }
 
     private enum ConstantPoolTag {
+        CONSTANT_Unused_0,
         CONSTANT_Utf8,
         CONSTANT_Unused_2,
         CONSTANT_Integer,
@@ -162,6 +180,16 @@ public final class Namespacer {
         CONSTANT_InvokeDynamic,
         CONSTANT_Module,
         CONSTANT_Package;
+
+        private final byte ordinal;
+
+        private ConstantPoolTag() {
+            final int ordinal = ordinal();
+            if (Assert.ASSERT_ENABLED) {
+                Assert.assertFalse(ordinal < Byte.MIN_VALUE || Byte.MAX_VALUE < ordinal, () -> "ConstantPoolTag must fit into a byte.");
+            }
+            this.ordinal = (byte) ordinal;
+        }
 
         private static final ConstantPoolTag[] VALUES = ConstantPoolTag.values();
     }
@@ -331,7 +359,7 @@ public final class Namespacer {
 
             GrowableByteArray.growIfNecessary(writer.classFileAfter, (int) minimumRequiredSize);
 
-            System.arraycopy(bytesToWrite, start, writer.classFileAfter.array, 0, length);
+            System.arraycopy(bytesToWrite, start, writer.classFileAfter.array, writer.classFileAfter.size, length);
             writer.classFileAfter.size+=length;
         }
 
