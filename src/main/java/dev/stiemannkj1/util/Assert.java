@@ -4,55 +4,56 @@ import java.util.function.Supplier;
 
 public final class Assert {
 
-    public static final boolean ASSERT_ENABLED = Boolean.parseBoolean(System.getProperty(Assert.class.getTypeName() + ".enabled"));
+  public static final boolean ASSERT_ENABLED =
+      Boolean.parseBoolean(System.getProperty(Assert.class.getTypeName() + ".enabled"));
 
-    public static void assertTrue(final boolean value, final Supplier<String> message) {
+  public static void assertTrue(final boolean value, final Supplier<String> message) {
 
-        if (!ASSERT_ENABLED) {
-            return;
-        }
-
-        if (!value) {
-            throw new AssertionError(message.get());
-        }
+    if (!ASSERT_ENABLED) {
+      return;
     }
 
-    public static void assertFalse(final boolean value, final Supplier<String> message) {
+    if (!value) {
+      throw new AssertionError(message.get());
+    }
+  }
 
-        if (!ASSERT_ENABLED) {
-            return;
-        }
+  public static void assertFalse(final boolean value, final Supplier<String> message) {
 
-       assertTrue(!value, message);
+    if (!ASSERT_ENABLED) {
+      return;
     }
 
-    public static <T> T assertNotNull(final T object, final String name) {
+    assertTrue(!value, message);
+  }
 
-        if (!ASSERT_ENABLED) {
-            return object;
-        }
+  public static <T> T assertNotNull(final T object, final String name) {
 
-        assertFalse(name == null, () -> "Field name must not be null.");
-        assertFalse(object == null, () -> name + " must not be null.");
-        return object;
+    if (!ASSERT_ENABLED) {
+      return object;
     }
 
-    public static <T> T assertNotNull(final T object) {
-        return assertNotNull(object, "Value");
+    assertFalse(name == null, () -> "Field name must not be null.");
+    assertFalse(object == null, () -> name + " must not be null.");
+    return object;
+  }
+
+  public static <T> T assertNotNull(final T object) {
+    return assertNotNull(object, "Value");
+  }
+
+  public static String assertNotEmpty(final String string, final String name) {
+
+    if (!ASSERT_ENABLED) {
+      return string;
     }
 
-    public static String assertNotEmpty(final String string, final String name) {
+    assertNotNull(string, name);
+    assertFalse(string.isEmpty(), () -> name + " must not be empty.");
+    return string;
+  }
 
-        if (!ASSERT_ENABLED) {
-            return string;
-        }
-
-        assertNotNull(string, name);
-        assertFalse(string.isEmpty(), () -> name + " must not be empty.");
-        return string;
-    }
-
-   public static String assertNotEmpty(final String string) {
-        return assertNotEmpty(string, "String");
-   }
+  public static String assertNotEmpty(final String string) {
+    return assertNotEmpty(string, "String");
+  }
 }
