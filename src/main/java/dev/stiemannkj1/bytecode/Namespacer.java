@@ -9,15 +9,17 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
+import static dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray.size;
 import static dev.stiemannkj1.util.Assert.assertNotEmpty;
 import static dev.stiemannkj1.util.Assert.assertNotNull;
 import static dev.stiemannkj1.util.Assert.assertTrue;
 
 public final class Namespacer {
 
-    public static final int CONSTANT_UTF8_INFO_HEADER_SIZE = 3;
+    private static final int CONSTANT_UTF8_INFO_HEADER_SIZE = 3;
+    private static final int U16_MAX_VALUE = (1 << 16) - 1;
 
-    public static String namespace(final Allocator allocator, final String fileName, final byte[] classFileBefore, final Map<String, String> replacementsMap, final GrowableByteArray classFileAfter) {
+    public static String namespace(final Allocator allocator, final String fileName, final GrowableByteArray classFileBefore, final Map<String, String> replacementsMap, final GrowableByteArray classFileAfter) {
 
             final List<Pair<byte[], byte[]>> replacements = allocator.allocateList(replacementsMap.size());
             // defer$(() -> allocator.deallocateObject(replacements));
@@ -32,9 +34,7 @@ public final class Namespacer {
             ByteParser.consumeRequired(parser, 0xCAFEBABE);
             parser.currentIndex += 4; // Skip major and minor versions.
             final int constant_pool_count = (int) ByteParser.consumeUnsignedBytes(parser, 2) - 1;
-            final Writer writer = allocator.allocateObject(Writer::new);
-            Writer.initialize(writer, classFileAfter, fileName);
-            Writer.write(writer, classFileBefore, 0, parser.currentIndex);
+            GrowableByteArray.copyBytes(classFileBefore, 0, classFileAfter, 0, parser.currentIndex);
 
             for (int i = 0; i < constant_pool_count; i++) {
 
@@ -58,53 +58,54 @@ public final class Namespacer {
 
                 if (ConstantPoolTag.CONSTANT_Utf8 != tag) {
                     parser.currentIndex += length;
-                    Writer.write(writer, classFileBefore, constantStartIndex, length + 1);
+                    GrowableByteArray.appendBytes(classFileBefore, constantStartIndex, classFileAfter, length + 1);
 
                     continue;
                 }
 
-                int finalLength = length;
                 int remainingLength = length;
 
                 replacing:
                 for (final Pair<byte[], byte[]> replacement : replacements) {
 
                     for (int j = 0; j < replacement.left().length; j++) {
-                        if (replacement.left()[j] != classFileBefore[parser.currentIndex + j]) {
+                        if (replacement.left()[j] != GrowableByteArray.get(classFileBefore, parser.currentIndex + j)) {
                             continue replacing;
                         }
                     }
 
-                    Writer.write(writer, replacement.right(), 0, replacement.right().length);
                     remainingLength = length - replacement.left().length;
-                    finalLength = replacement.right().length + remainingLength;
+                    final int finalLength = replacement.right().length + remainingLength;
+
+                    if (finalLength > U16_MAX_VALUE) {
+                        return allocator.allocateStringBuilder(256).append("Constant String at index ").append(i + 1).append(" is larger than max allowed ").append(ConstantPoolTag.CONSTANT_Utf8.name()).append(" size. Expected less than or equal to ").append(U16_MAX_VALUE).append(" but was ").append(finalLength).toString();
+                    }
+
+                    parser.currentIndex += (length - remainingLength);
+
+                    GrowableByteArray.append(classFileAfter, ConstantPoolTag.CONSTANT_Utf8.ordinal);
+                    GrowableByteArray.appendBytes(classFileAfter, finalLength, 2);
+                    GrowableByteArray.appendBytes(replacement.right(), 0, classFileAfter, replacement.right().length);
                     // TODO add simple test for feedback
                     // TODO fix bugs
                     // TODO add complex tests with field refs, method refs, lambdas, invokedynamic, method descriptors etc.
                     break;
                 }
 
-                if (remainingLength < length) {
-                    parser.currentIndex += (length - remainingLength);
-                    GrowableByteArray.growIfNecessary(classFileAfter, classFileAfter.size + CONSTANT_UTF8_INFO_HEADER_SIZE);
-                    classFileAfter.array[classFileAfter.size++] = ConstantPoolTag.CONSTANT_Utf8.ordinal;
-                    // TODO write size here
-                } else {
-                    Writer.write(writer, classFileBefore, constantStartIndex, CONSTANT_UTF8_INFO_HEADER_SIZE);
+                if (remainingLength >= length) {
+                    GrowableByteArray.appendBytes(classFileBefore, constantStartIndex, classFileAfter, CONSTANT_UTF8_INFO_HEADER_SIZE);
                 }
 
                 final int start = parser.currentIndex;
                 parser.currentIndex += remainingLength;
-                Writer.write(writer, parser.bytes, start, remainingLength);
+                GrowableByteArray.appendBytes(classFileBefore, start, classFileAfter, remainingLength);
             }
 
             if (!ByteParser.shouldContinue(parser)) {
                 return parser.errorMessage.toString();
             }
 
-            if (Writer.hasError(writer)) {
-                return writer.errorMessage.toString();
-            }
+            GrowableByteArray.appendBytes(classFileBefore, parser.currentIndex, classFileAfter, size(classFileBefore) - parser.currentIndex);
 
             return null;
     }
@@ -195,7 +196,7 @@ public final class Namespacer {
     }
 
     private static final class ByteParser {
-        private byte[] bytes;
+        private GrowableByteArray bytes;
         private int currentIndex;
         private String fileName;
         private StringBuilder errorMessage;
@@ -204,14 +205,14 @@ public final class Namespacer {
             this.errorMessage = assertNotNull(allocator).allocateStringBuilder(256);
         }
 
-        private static void reset(final ByteParser parser, final byte[] bytes, final String fileName) {
+        private static void reset(final ByteParser parser, final GrowableByteArray bytes, final String fileName) {
             parser.bytes = assertNotNull(bytes);
             parser.fileName = assertNotEmpty(fileName);
             parser.errorMessage.setLength(0);
         }
 
         private static boolean shouldContinue(final ByteParser parser) {
-            return parser.errorMessage.length() == 0 && parser.bytes.length > parser.currentIndex;
+            return parser.errorMessage.length() == 0 && size(parser.bytes) > parser.currentIndex;
         }
 
         private static boolean consumeOptional(final ByteParser parser, final int i4) {
@@ -222,7 +223,7 @@ public final class Namespacer {
                     return false;
                 }
 
-                if (((byte) ((i4 >> (i * Byte.SIZE)) & 0xFF)) != parser.bytes[parser.currentIndex++]) {
+                if (((byte) ((i4 >> (i * Byte.SIZE)) & 0xFF)) != GrowableByteArray.get(parser.bytes, parser.currentIndex++)) {
                     return false;
                 }
             }
@@ -253,7 +254,7 @@ public final class Namespacer {
                     return 0;
                 }
 
-                u8 = (u8 | (((long) parser.bytes[parser.currentIndex++]) << (i * Byte.SIZE)));
+                u8 = (u8 | (((long) GrowableByteArray.get(parser.bytes, parser.currentIndex++)) << (i * Byte.SIZE)));
             }
 
             return u8;
@@ -261,6 +262,10 @@ public final class Namespacer {
 
         private static void consumeBytes(final ByteParser parser, final int sizeToConsume) {
             parser.currentIndex+=sizeToConsume;
+
+            if (!shouldContinue(parser)) {
+                parser.errorMessage.append("Index out of bounds for array with size ").append(size(parser.bytes)).append(": ").append(parser.currentIndex);
+            }
         }
 
         private static StringBuilder appendHexString(final StringBuilder stringBuilder, final int i4) {
@@ -277,15 +282,16 @@ public final class Namespacer {
             return stringBuilder;
         }
 
-        private static StringBuilder appendHexString(final StringBuilder stringBuilder, final byte[] bytes, int offset, int size) {
+        private static StringBuilder appendHexString(final StringBuilder stringBuilder, final GrowableByteArray bytes, int offset, int size) {
 
             for (int i = offset; i < size; i++) {
-                appendHexString(stringBuilder, bytes[i]);
+                appendHexString(stringBuilder, GrowableByteArray.get(bytes, i));
             }
 
             return stringBuilder;
         }
 
+        // TODO this is broken
         private static StringBuilder appendHexString(final StringBuilder stringBuilder, final byte i1) {
             final int i4 = Byte.toUnsignedInt(i1);
             return stringBuilder.append(BYTES_AS_HEX[i4]).append(BYTES_AS_HEX[i4 + 1]);
@@ -330,41 +336,6 @@ public final class Namespacer {
                 ZEROS[i] = stringBuilder.append('0').append('0').toString();
             }
 
-        }
-    }
-
-    private static final class Writer {
-        private GrowableByteArray classFileAfter;
-        private String fileName;
-        private StringBuilder errorMessage;
-
-        private Writer(final Allocator allocator) {
-            this.errorMessage = Assert.assertNotNull(allocator).allocateStringBuilder(256);
-        }
-
-        private static void initialize(final Writer writer, final GrowableByteArray classFileAfter, final String fileName) {
-            writer.classFileAfter = assertNotNull(classFileAfter);
-            writer.fileName = assertNotEmpty(fileName);
-            writer.errorMessage.setLength(0);
-        }
-
-        private static void write(final Writer writer, final byte[] bytesToWrite, final int start, final int length) {
-
-            final long minimumRequiredSize = (long) writer.classFileAfter.size + length;
-
-            if (minimumRequiredSize > Integer.MAX_VALUE) {
-                writer.errorMessage.append("Failed to write bytes to ").append(writer.fileName).append(". Max Java array size exceeded.");
-                return;
-            }
-
-            GrowableByteArray.growIfNecessary(writer.classFileAfter, (int) minimumRequiredSize);
-
-            System.arraycopy(bytesToWrite, start, writer.classFileAfter.array, writer.classFileAfter.size, length);
-            writer.classFileAfter.size+=length;
-        }
-
-        private static boolean hasError(final Writer writer) {
-            return writer.errorMessage.length() > 0;
         }
     }
 }

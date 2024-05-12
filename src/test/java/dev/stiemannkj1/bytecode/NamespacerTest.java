@@ -13,6 +13,8 @@ import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 
+import static dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray.bytes;
+import static dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray.size;
 import static dev.stiemannkj1.util.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -21,20 +23,22 @@ final class NamespacerTest {
 
     @Test
     void it_namespaces_class() throws Throwable {
+        final GrowableByteArray classFileBefore = Allocators.JVM_HEAP.allocateObject(GrowableByteArray::new);
+        readBytes(ClassToNamespace.class, classFileBefore);
         final Map<String, String> replacement = new HashMap<>();
         replacement.put("dev.stiemannkj1.bytecode", "now.im.namespaced");
         final ClassGenerator classGenerator = new ClassGenerator(this.getClass().getClassLoader());
         final GrowableByteArray classFileAfter = Allocators.JVM_HEAP.allocateObject(GrowableByteArray::new);
-        assertNull(Namespacer.namespace(Allocators.JVM_HEAP, classNameToPath(ClassToNamespace.class), readBytes(ClassToNamespace.class), replacement, classFileAfter));
+        assertNull(Namespacer.namespace(Allocators.JVM_HEAP, classNameToPath(ClassToNamespace.class), classFileBefore, replacement, classFileAfter));
 
         try {
-            final Class<?> namespacedClass = classGenerator.generateClass(ClassToNamespace.class.getTypeName(), classFileAfter.array, 0, classFileAfter.size);
+            final Class<?> namespacedClass = classGenerator.generateClass(ClassToNamespace.class.getTypeName(), bytes(classFileAfter), 0, size(classFileAfter));
             assertEquals("now.im.namespaced.NamespacerTest$ClassToNamespace", namespacedClass.getTypeName());
             assertEquals("now.im.namespaced.toString", namespacedClass.getDeclaredConstructor().newInstance().toString());
         } catch (final Throwable t) {
             try {
-                final byte[] failedClass = new byte[classFileAfter.size];
-                System.arraycopy(classFileAfter.array, 0, failedClass, 0, classFileAfter.size);
+                final byte[] failedClass = new byte[size(classFileAfter)];
+                System.arraycopy(bytes(classFileAfter), 0, failedClass, 0, size(classFileAfter));
                 final File failedClassFile = new File(System.getProperty("project.build.dir") + File.separator + this.getClass().getSimpleName() + File.separator + ClassToNamespace.class.getTypeName().replace(".", File.separator) + ".class");
                 final boolean ignored = failedClassFile.getParentFile().mkdirs();
                 Files.write(failedClassFile.toPath(), failedClass);
@@ -49,23 +53,22 @@ final class NamespacerTest {
         return aClass.getTypeName().replace('.', '/') + ".class";
     }
 
-    private static byte[] readBytes(final Class<?> aClass) {
+    private static void readBytes(final Class<?> aClass, final GrowableByteArray array) {
 
         final URL url = aClass.getResource('/' + classNameToPath(aClass));
-
-        final int maxSize = 1 << 19;
-        final byte[] classBytes = new byte[maxSize];
+        final int maxSize = 1 << 20;
+        GrowableByteArray.growIfNecessary(array, maxSize);
 
         try (final InputStream inputStream = assertNotNull(url.openStream())) {
 
-            if (inputStream.read(classBytes, 0, classBytes.length) >= maxSize) {
+            final int read = GrowableByteArray.read(inputStream, array, maxSize);
+
+            if (read >= maxSize) {
               throw new RuntimeException("Test class file was larger than " + maxSize);
             }
         } catch (final IOException e) {
             throw new RuntimeException(e);
         }
-
-        return classBytes;
     }
 
     public static final class ClassToNamespace {
