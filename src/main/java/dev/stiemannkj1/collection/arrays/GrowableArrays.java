@@ -16,6 +16,10 @@ public final class GrowableArrays {
       this.allocator = Assert.assertNotNull(allocator);
     }
 
+    public static void clear(final GrowableByteArray array) {
+      array.size = 0;
+    }
+
     public static byte[] bytes(final GrowableByteArray array) {
       return array.bytes;
     }

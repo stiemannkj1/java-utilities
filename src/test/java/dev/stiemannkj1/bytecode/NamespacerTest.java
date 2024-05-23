@@ -8,11 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import dev.stiemannkj1.allocator.Allocators;
 import dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -39,35 +37,53 @@ final class NamespacerTest {
             replacement,
             classFileAfter));
 
+    String className = "now.im.namespaced.NamespacerTest$ClassToNamespace";
+
     try {
       final Class<?> namespacedClass =
-          classGenerator.generateClass(
-              "now.im.namespaced.NamespacerTest$ClassToNamespace",
-              bytes(classFileAfter),
-              0,
-              size(classFileAfter));
-      assertEquals(
-          "now.im.namespaced.NamespacerTest$ClassToNamespace", namespacedClass.getTypeName());
-      assertEquals(
-          "now.im.namespaced.toString",
-          namespacedClass.getDeclaredConstructor().newInstance().toString());
+          classGenerator.generateClass(className, bytes(classFileAfter), 0, size(classFileAfter));
+
+      assertEquals(className, namespacedClass.getTypeName());
+      final Object namespaced = namespacedClass.getDeclaredConstructor().newInstance();
+      assertEquals("now.im.namespaced.toString", namespaced.toString());
+
+      GrowableByteArray.clear(classFileBefore);
+      GrowableByteArray.clear(classFileAfter);
+      readBytes(AbstractGenericClassToNamespace.class, classFileBefore);
+      assertNull(
+              Namespacer.namespace(
+                      Allocators.JVM_HEAP,
+                      classNameToPath(AbstractGenericClassToNamespace.class),
+                      classFileBefore,
+                      replacement,
+                      classFileAfter));
+
+      className = "now.im.namespaced.NamespacerTest$AbstractGenericClassToNamespace";
+      final Class<?> genericParent = classGenerator.generateClass(className, bytes(classFileAfter), 0, size(classFileAfter));
+
+      GrowableByteArray.clear(classFileBefore);
+      GrowableByteArray.clear(classFileAfter);
+      readBytes(ConcreteGenericClassToNamespace.class, classFileBefore);
+      assertNull(
+              Namespacer.namespace(
+                      Allocators.JVM_HEAP,
+                      classNameToPath(ConcreteGenericClassToNamespace.class),
+                      classFileBefore,
+                      replacement,
+                      classFileAfter));
+
+      className = "now.im.namespaced.NamespacerTest$ConcreteGenericClassToNamespace";
+      final Class<?> genericClass = classGenerator.generateClass(className, bytes(classFileAfter), 0, size(classFileAfter));
+      final Object generic = invoke(genericClass, null, "<init>", new Class<?>[0], new Object[0]);
+
+      assertEquals(namespaced, invoke(genericParent, null, "staticGenericReturnAndArg", new Class[] { namespacedClass }, new Object[] { namespaced }));
+      assertEquals(namespaced, invoke(genericParent, null, "staticReturnAndArg", new Class[] { namespacedClass }, new Object[] { namespaced }));
+      assertEquals(namespaced, invoke(genericParent, generic, "virtualGenericReturnAndArg", new Class[] { namespacedClass }, new Object[] { namespaced }));
+      assertEquals(namespaced, invoke(genericParent, generic, "virtualReturnAndArg", new Class[] { namespacedClass }, new Object[] { namespaced }));
+      assertEquals(namespaced, invoke(genericClass, generic, "abstractGenericReturnAndArg", new Class[] { namespacedClass }, new Object[] { namespaced }));
+      assertEquals(namespaced, invoke(genericClass, generic, "abstractReturnAndArg", new Class[] { namespacedClass }, new Object[] { namespaced }));
     } catch (final Throwable t) {
-      try {
-        final byte[] failedClass = new byte[size(classFileAfter)];
-        System.arraycopy(bytes(classFileAfter), 0, failedClass, 0, size(classFileAfter));
-        final File failedClassFile =
-            new File(
-                System.getProperty("project.build.dir")
-                    + File.separator
-                    + this.getClass().getSimpleName()
-                    + File.separator
-                    + ClassToNamespace.class.getTypeName().replace(".", File.separator)
-                    + ".class");
-        final boolean ignored = failedClassFile.getParentFile().mkdirs();
-        Files.write(failedClassFile.toPath(), failedClass);
-      } catch (final IOException e) {
-        t.addSuppressed(e);
-      }
+      ClassGenerator.writeClass(t, className, classFileAfter);
       throw t;
     }
   }
@@ -94,6 +110,14 @@ final class NamespacerTest {
     }
   }
 
+  private static Object invoke(final Class<?> aClass, final Object object, final String methodName, final Class<?>[] argTypes, final Object[] args) throws ReflectiveOperationException {
+
+    if ("<init>".equals(methodName)) {
+      return aClass.getConstructor(argTypes).newInstance(args);
+    }
+     return aClass.getMethod(methodName, argTypes).invoke(object, args);
+  }
+
   public static final class ClassToNamespace {
 
     public ClassToNamespace() {}
@@ -101,6 +125,47 @@ final class NamespacerTest {
     @Override
     public String toString() {
       return "dev.stiemannkj1.bytecode.toString";
+    }
+  }
+
+  public abstract static class AbstractGenericClassToNamespace<T extends ClassToNamespace> {
+
+    public AbstractGenericClassToNamespace() {}
+
+    public static <T extends ClassToNamespace> T staticGenericReturnAndArg(final T t) {
+      return t;
+    }
+
+    public T virtualGenericReturnAndArg(final T t) {
+      return t;
+    }
+
+    public abstract T abstractGenericReturnAndArg(final T t);
+
+    public static ClassToNamespace staticReturnAndArg(final ClassToNamespace t) {
+      return t;
+    }
+
+    public ClassToNamespace virtualReturnAndArg(final ClassToNamespace t) {
+      return t;
+    }
+
+    public abstract ClassToNamespace abstractReturnAndArg(final ClassToNamespace t);
+  }
+
+  public static final class ConcreteGenericClassToNamespace
+      extends AbstractGenericClassToNamespace<ClassToNamespace> {
+
+    public ConcreteGenericClassToNamespace() {}
+
+    @Override
+    public ClassToNamespace abstractGenericReturnAndArg(final ClassToNamespace classToNamespace) {
+      return classToNamespace;
+    }
+
+    @Override
+    public ClassToNamespace abstractReturnAndArg(final ClassToNamespace classToNamespace) {
+      return classToNamespace;
     }
   }
 }

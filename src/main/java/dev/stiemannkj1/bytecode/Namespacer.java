@@ -298,7 +298,7 @@ public final class Namespacer {
 
         u8 =
             (u8
-                | (((long) GrowableByteArray.get(parser.bytes, parser.currentIndex++))
+                | (Byte.toUnsignedLong(GrowableByteArray.get(parser.bytes, parser.currentIndex++))
                     << (i * Byte.SIZE)));
       }
 
