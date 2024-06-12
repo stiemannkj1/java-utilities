@@ -15,6 +15,7 @@ import java.util.Map;
 
 public final class Namespacer {
 
+  private static final int DEFAULT_STRING_BUILDER_SIZE = 256;
   private static final int CONSTANT_UTF8_INFO_HEADER_SIZE = 3;
   private static final int U16_MAX_VALUE = (1 << 16) - 1;
 
@@ -71,56 +72,20 @@ public final class Namespacer {
         continue;
       }
 
-      int remainingLength = length;
+      final String error =
+          namespaceUtf8ConstantString(
+              allocator,
+              classFileBefore,
+              classFileAfter,
+              replacements,
+              parser,
+              constantStartIndex,
+              length,
+              i);
 
-      replacing:
-      for (final Pair<byte[], byte[]> replacement : replacements) {
-
-        for (int j = 0; j < replacement.left().length; j++) {
-          if (replacement.left()[j]
-              != GrowableByteArray.get(classFileBefore, parser.currentIndex + j)) {
-            continue replacing;
-          }
-        }
-
-        remainingLength = length - replacement.left().length;
-        final int finalLength = replacement.right().length + remainingLength;
-
-        if (finalLength > U16_MAX_VALUE) {
-          return allocator
-              .allocateStringBuilder(256)
-              .append("Constant String at index ")
-              .append(i + 1)
-              .append(" is larger than max allowed ")
-              .append(ConstantPoolTag.CONSTANT_Utf8.name())
-              .append(" size. Expected less than or equal to ")
-              .append(U16_MAX_VALUE)
-              .append(" but was ")
-              .append(finalLength)
-              .toString();
-        }
-
-        parser.currentIndex += (length - remainingLength);
-
-        GrowableByteArray.append(classFileAfter, ConstantPoolTag.CONSTANT_Utf8.ordinal);
-        GrowableByteArray.appendBytes(classFileAfter, finalLength, 2);
-        GrowableByteArray.appendBytes(
-            replacement.right(), 0, classFileAfter, replacement.right().length);
-        // TODO add simple test for feedback
-        // TODO fix bugs
-        // TODO add complex tests with field refs, method refs, lambdas, invokedynamic, method
-        // descriptors etc.
-        break;
+      if (error != null) {
+        return error;
       }
-
-      if (remainingLength >= length) {
-        GrowableByteArray.appendBytes(
-            classFileBefore, constantStartIndex, classFileAfter, CONSTANT_UTF8_INFO_HEADER_SIZE);
-      }
-
-      final int start = parser.currentIndex;
-      parser.currentIndex += remainingLength;
-      GrowableByteArray.appendBytes(classFileBefore, start, classFileAfter, remainingLength);
     }
 
     if (!ByteParser.shouldContinue(parser)) {
@@ -133,6 +98,143 @@ public final class Namespacer {
         classFileAfter,
         size(classFileBefore) - parser.currentIndex);
 
+    return null;
+  }
+
+  private static String namespaceUtf8ConstantString(
+      final Allocator allocator,
+      final GrowableByteArray classFileBefore,
+      final GrowableByteArray classFileAfter,
+      final List<Pair<byte[], byte[]>> replacements,
+      final ByteParser parser,
+      final int constantStartIndexBefore,
+      final int length,
+      final int indexInConstantPool) {
+
+    if (!ByteParser.shouldContinue(parser)) {
+      return parser.errorMessage.toString();
+    }
+
+    final int constantStartIndexAfter = GrowableByteArray.size(classFileAfter);
+    final byte currentChar = GrowableByteArray.get(classFileBefore, parser.currentIndex);
+    final String error;
+
+    if ('L' == currentChar || '[' == currentChar) {
+      error =
+          namespaceTypeSignature(
+              allocator,
+              classFileBefore,
+              classFileAfter,
+              replacements,
+              parser,
+              constantStartIndexBefore,
+              length,
+              indexInConstantPool);
+    } else if ('(' == currentChar) {
+      error = null; // namespaceMethodSignature(TODO);
+    } else if ('<' == currentChar) {
+      error = null; // namespaceGenericClassSignature(TODO);
+    } else if (Character.isAlphabetic(currentChar)) {
+      error =
+          namespaceType(
+              allocator,
+              classFileBefore,
+              classFileAfter,
+              replacements,
+              parser,
+              constantStartIndexBefore,
+              length,
+              indexInConstantPool);
+    } else {
+      parser.currentIndex += length;
+      GrowableByteArray.appendBytes(
+          classFileBefore, constantStartIndexBefore, classFileAfter, length + 1);
+      error = null;
+    }
+
+    if (error != null) {
+      GrowableByteArray.copyBytes(
+          classFileBefore,
+          constantStartIndexBefore,
+          classFileAfter,
+          constantStartIndexAfter,
+          length + 1);
+    }
+
+    return error;
+  }
+
+  private static String namespaceTypeSignature(
+      final Allocator allocator,
+      final GrowableByteArray classFileBefore,
+      final GrowableByteArray classFileAfter,
+      final List<Pair<byte[], byte[]>> replacements,
+      final ByteParser parser,
+      final int constantStartIndex,
+      final int length,
+      final int indexInConstantPool) {
+    return null;
+  }
+
+  private static String namespaceType(
+      final Allocator allocator,
+      final GrowableByteArray classFileBefore,
+      final GrowableByteArray classFileAfter,
+      final List<Pair<byte[], byte[]>> replacements,
+      final ByteParser parser,
+      final int constantStartIndex,
+      final int length,
+      final int indexInConstantPool) {
+    int remainingLength = length;
+
+    replacing:
+    for (final Pair<byte[], byte[]> replacement : replacements) {
+
+      for (int i = 0; i < replacement.left().length; i++) {
+        if (replacement.left()[i]
+            != GrowableByteArray.get(classFileBefore, parser.currentIndex + i)) {
+          continue replacing;
+        }
+      }
+
+      remainingLength = length - replacement.left().length;
+      final int finalLength = replacement.right().length + remainingLength;
+
+      if (finalLength > U16_MAX_VALUE) {
+        return allocator
+            .allocateStringBuilder(DEFAULT_STRING_BUILDER_SIZE)
+            .append("Constant String at index ")
+            .append(indexInConstantPool + 1)
+            .append(" is larger than max allowed ")
+            .append(ConstantPoolTag.CONSTANT_Utf8.name())
+            .append(" size. Expected less than or equal to ")
+            .append(U16_MAX_VALUE)
+            .append(" but was ")
+            .append(finalLength)
+            .toString();
+      }
+
+      parser.currentIndex += (length - remainingLength);
+
+      GrowableByteArray.append(classFileAfter, ConstantPoolTag.CONSTANT_Utf8.ordinal);
+      GrowableByteArray.appendBytes(classFileAfter, finalLength, 2);
+      GrowableByteArray.appendBytes(
+          replacement.right(), 0, classFileAfter, replacement.right().length);
+      // TODO add simple test for feedback
+      // TODO fix bugs
+      // TODO add complex tests with field refs, method refs, lambdas, invokedynamic, method
+      // descriptors etc.
+      break;
+    }
+
+    if (remainingLength >= length) {
+      GrowableByteArray.appendBytes(
+          classFileBefore, constantStartIndex, classFileAfter, CONSTANT_UTF8_INFO_HEADER_SIZE);
+    }
+
+    final int start = parser.currentIndex;
+    parser.currentIndex += remainingLength;
+    GrowableByteArray.appendBytes(classFileBefore, start, classFileAfter, remainingLength);
     return null;
   }
 
@@ -235,7 +337,8 @@ public final class Namespacer {
     private StringBuilder errorMessage;
 
     private ByteParser(final Allocator allocator) {
-      this.errorMessage = assertNotNull(allocator).allocateStringBuilder(256);
+      this.errorMessage =
+          assertNotNull(allocator).allocateStringBuilder(DEFAULT_STRING_BUILDER_SIZE);
     }
 
     private static void reset(
