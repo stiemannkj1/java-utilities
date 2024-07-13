@@ -1,5 +1,12 @@
 package dev.stiemannkj1.allocator;
 
+import dev.stiemannkj1.util.References.BooleanRef;
+import dev.stiemannkj1.util.References.ByteRef;
+import dev.stiemannkj1.util.References.DoubleRef;
+import dev.stiemannkj1.util.References.FloatRef;
+import dev.stiemannkj1.util.References.IntRef;
+import dev.stiemannkj1.util.References.LongRef;
+import dev.stiemannkj1.util.References.ShortRef;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -33,6 +40,20 @@ public final class Allocators {
     <T> List<T> allocateList(final int size);
 
     <T> List<T> allocateListWithFixedSize(final int size);
+
+    BooleanRef allocateBooleanRef();
+
+    ByteRef allocateByteRef();
+
+    ShortRef allocateShortRef();
+
+    IntRef allocateIntRef();
+
+    LongRef allocateLongRef();
+
+    FloatRef allocateFloatRef();
+
+    DoubleRef allocateDoubleRef();
 
     void deallocateObject(final Object object);
 
@@ -109,6 +130,41 @@ public final class Allocators {
       @SuppressWarnings("unchecked")
       final List<T> objects = Arrays.asList((T[]) new Object[size]);
       return objects;
+    }
+
+    @Override
+    public BooleanRef allocateBooleanRef() {
+      return new BooleanRef();
+    }
+
+    @Override
+    public ByteRef allocateByteRef() {
+      return new ByteRef();
+    }
+
+    @Override
+    public ShortRef allocateShortRef() {
+      return new ShortRef();
+    }
+
+    @Override
+    public IntRef allocateIntRef() {
+      return new IntRef();
+    }
+
+    @Override
+    public LongRef allocateLongRef() {
+      return new LongRef();
+    }
+
+    @Override
+    public FloatRef allocateFloatRef() {
+      return new FloatRef();
+    }
+
+    @Override
+    public DoubleRef allocateDoubleRef() {
+      return new DoubleRef();
     }
 
     @Override

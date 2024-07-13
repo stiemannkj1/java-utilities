@@ -106,7 +106,7 @@ public final class GrowableArrays {
       growIfNecessary(dest, destPos + length);
 
       System.arraycopy(src, srcPos, dest.bytes, destPos, length);
-      dest.size += length;
+      dest.size = destPos + length;
     }
 
     public static int read(
