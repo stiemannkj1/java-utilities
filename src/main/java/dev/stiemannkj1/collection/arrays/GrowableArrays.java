@@ -1,5 +1,7 @@
 package dev.stiemannkj1.collection.arrays;
 
+import static dev.stiemannkj1.util.Assert.*;
+
 import dev.stiemannkj1.allocator.Allocators.Allocator;
 import dev.stiemannkj1.util.Assert;
 import java.io.IOException;
@@ -52,6 +54,13 @@ public final class GrowableArrays {
       return true;
     }
 
+    public static void append(final GrowableByteArray array, final char ascii) {
+
+      assertAsciiPrintable(ascii);
+
+      append(array, (byte) ascii);
+    }
+
     public static void append(final GrowableByteArray array, final byte i1) {
 
       growIfNecessary(array, array.size + 1);
@@ -60,17 +69,23 @@ public final class GrowableArrays {
 
     public static void appendBytes(
         final GrowableByteArray array, final long bytes, final int sizeInBytes) {
+      copyBytes(array, bytes, size(array), sizeInBytes);
+    }
 
-      if (Assert.ASSERT_ENABLED) {
-        Assert.assertFalse(
+    public static void copyBytes(
+        final GrowableByteArray array, final long bytes, int index, final int sizeInBytes) {
+
+      if (ASSERT_ENABLED) {
+        assertFalse(
             sizeInBytes < 1 || 8 < sizeInBytes,
             () -> "Bytes to write must be between 1 and " + Long.BYTES);
       }
 
-      growIfNecessary(array, sizeInBytes);
+      growIfNecessary(array, index + sizeInBytes + 1);
 
       for (int i = (sizeInBytes - 1); i >= 0; i--) {
-        append(array, (byte) (bytes >> (i * Byte.SIZE)));
+        array.bytes[index] = (byte) (bytes >> (i * Byte.SIZE));
+        index++;
       }
     }
 

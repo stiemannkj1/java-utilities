@@ -56,4 +56,16 @@ public final class Assert {
   public static String assertNotEmpty(final String string) {
     return assertNotEmpty(string, "String");
   }
+
+  public static char assertAsciiPrintable(final char char_) {
+
+    if (ASSERT_ENABLED) {
+      assertTrue(
+          '\u0020' <= char_ && char_ <= '\u007f',
+          () ->
+              "Only ASCII printable characters are supported for this method, but found: " + char_);
+    }
+
+    return char_;
+  }
 }
