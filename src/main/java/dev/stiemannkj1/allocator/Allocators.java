@@ -2,6 +2,7 @@ package dev.stiemannkj1.allocator;
 
 import dev.stiemannkj1.util.References.BooleanRef;
 import dev.stiemannkj1.util.References.ByteRef;
+import dev.stiemannkj1.util.References.CharRef;
 import dev.stiemannkj1.util.References.DoubleRef;
 import dev.stiemannkj1.util.References.FloatRef;
 import dev.stiemannkj1.util.References.IntRef;
@@ -54,6 +55,8 @@ public final class Allocators {
     FloatRef allocateFloatRef();
 
     DoubleRef allocateDoubleRef();
+
+    CharRef allocateCharRef();
 
     void deallocateObject(final Object object);
 
@@ -165,6 +168,11 @@ public final class Allocators {
     @Override
     public DoubleRef allocateDoubleRef() {
       return new DoubleRef();
+    }
+
+    @Override
+    public CharRef allocateCharRef() {
+      return new CharRef();
     }
 
     @Override

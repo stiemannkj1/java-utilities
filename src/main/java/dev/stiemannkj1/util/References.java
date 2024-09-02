@@ -30,5 +30,9 @@ public final class References {
     public double value;
   }
 
+  public static final class CharRef {
+    public char value;
+  }
+
   private References() {}
 }

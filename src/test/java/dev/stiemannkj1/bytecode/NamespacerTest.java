@@ -23,8 +23,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 final class NamespacerTest {
-  // B C D F I J S Z
-  // V
+  // B C D F I J S Z V
   // https://docs.oracle.com/javase/specs/jvms/se22/html/jvms-4.html#jvms-4.7.9.1
 
   // TODO namespace and merge class names in META-INF/services and META-INF/groovy

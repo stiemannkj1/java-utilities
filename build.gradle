@@ -45,6 +45,7 @@ dependencies {
 
 test {
   systemProperty("project.build.dir", project.buildDir.absolutePath)
+  systemProperty("dev.stiemannkj1.util.Assert.enabled", true)
   useJUnitPlatform()
 }
 
