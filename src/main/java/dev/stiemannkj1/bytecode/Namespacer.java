@@ -22,6 +22,7 @@ public final class Namespacer {
   private static final int BITS_8 = 8;
   private static final String NOT_SIGNATURE = Namespacer.class.getTypeName() + ".NOT_SIGNATURE";
 
+  private static final byte[] CLASS_FILE_SUFFIX = ".class".getBytes(StandardCharsets.UTF_8);
   // TODO always skip these and other standard class file strings
   private static final byte[] LOCAL_VARIABLE_TABLE =
       "LocalVariableTable".getBytes(StandardCharsets.UTF_8);
@@ -285,7 +286,7 @@ public final class Namespacer {
         Utf8ConstantInfo.HEADER_BYTES);
 
     final byte currentChar = GrowableByteArray.get(parser.bytes, parser.currentIndex);
-    final String result;
+    String result = null;
 
     if ('L' == currentChar || '[' == currentChar) {
       result =
@@ -305,12 +306,26 @@ public final class Namespacer {
 
       final int remainingBytes = constant.endIndexBefore - parser.currentIndex;
 
-      if (remainingBytes > 0) {
-        GrowableByteArray.appendBytes(
-            parser.bytes, parser.currentIndex, classFileAfter, remainingBytes);
-        parser.currentIndex = constant.endIndexBefore;
-      }
+      if (result == null && CLASS_FILE_SUFFIX.length == remainingBytes) {
+        // TODO shim Arrays.compare with multi-release jar
+        for (int i = 0; i < CLASS_FILE_SUFFIX.length; i++) {
+          if (CLASS_FILE_SUFFIX[i]
+              == GrowableByteArray.get(parser.bytes, parser.currentIndex + i)) {
+            continue;
+          }
 
+          result = NOT_SIGNATURE;
+          break;
+        }
+
+        if (result == null) {
+          GrowableByteArray.appendBytes(
+              CLASS_FILE_SUFFIX, 0, classFileAfter, CLASS_FILE_SUFFIX.length);
+          parser.currentIndex = constant.endIndexBefore;
+        }
+      } else if (remainingBytes > 0) {
+        result = NOT_SIGNATURE;
+      }
     } else {
       result = NOT_SIGNATURE;
     }
