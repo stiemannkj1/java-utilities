@@ -527,7 +527,6 @@ final class NamespacerTest {
     final Map<String, String> replacement = new HashMap<>();
     replacement.put("dev.stiemannkj1.bytecode", "now.im.namespaced");
     replacement.put("dev/stiemannkj1/bytecode", "now/im/namespaced");
-    replacement.put("Ldev/stiemannkj1/bytecode", "Lnow/im/namespaced");
     return descriptors(
         replacement, "now.im.namespaced.NamespacerTest$Before", ExpectedAfterShorter.strings());
   }
@@ -543,7 +542,6 @@ final class NamespacerTest {
     final Map<String, String> replacement = new HashMap<>();
     replacement.put("dev.stiemannkj1.bytecode", "now.im.namespaced.and.longer");
     replacement.put("dev/stiemannkj1/bytecode", "now/im/namespaced/and/longer");
-    replacement.put("Ldev/stiemannkj1/bytecode", "Lnow/im/namespaced/and/longer");
     return descriptors(
         replacement,
         "now.im.namespaced.and.longer.NamespacerTest$Before",
@@ -561,7 +559,6 @@ final class NamespacerTest {
     final Map<String, String> replacement = new HashMap<>();
     replacement.put("dev.stiemannkj1.bytecode", "now.im.namespaced.same12");
     replacement.put("dev/stiemannkj1/bytecode", "now/im/namespaced/same12");
-    replacement.put("Ldev/stiemannkj1/bytecode", "Lnow/im/namespaced/same12");
     return descriptors(
         replacement,
         "now.im.namespaced.same12.NamespacerTest$Before",
@@ -601,7 +598,6 @@ final class NamespacerTest {
     final Map<String, String> replacement = new HashMap<>();
     replacement.put("dev.stiemannkj1.bytecode", "now.im.namespaced");
     replacement.put("dev/stiemannkj1/bytecode", "now/im/namespaced");
-    replacement.put("Ldev/stiemannkj1/bytecode", "Lnow/im/namespaced");
     final ClassGenerator classGenerator = new ClassGenerator(this.getClass().getClassLoader());
     final GrowableByteArray classFileAfter =
         Allocators.JVM_HEAP.allocateObject(GrowableByteArray::new);

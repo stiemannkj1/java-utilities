@@ -19,7 +19,17 @@ public final class GrowableArrays {
     }
 
     public static void clear(final GrowableByteArray array) {
-      array.size = 0;
+      resize(array, 0);
+    }
+
+    public static void resize(final GrowableByteArray array, final int newSize) {
+
+      if (ASSERT_ENABLED) {
+        assertTrue(newSize >= 0, () -> "Array size must not be negative.");
+      }
+
+      growIfNecessary(array, newSize);
+      array.size = newSize;
     }
 
     public static byte[] bytes(final GrowableByteArray array) {
@@ -65,11 +75,6 @@ public final class GrowableArrays {
 
       growIfNecessary(array, array.size + 1);
       array.bytes[array.size++] = i1;
-    }
-
-    public static void appendBytes(
-        final GrowableByteArray array, final long bytes, final int sizeInBytes) {
-      copyBytes(array, bytes, size(array), sizeInBytes);
     }
 
     public static void copyBytes(

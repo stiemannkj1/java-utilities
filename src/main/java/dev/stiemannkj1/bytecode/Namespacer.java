@@ -300,7 +300,17 @@ public final class Namespacer {
           namespaceGenericClassSignature(
               allocator, fileName, parser, constant, replacements, classFileAfter);
     } else if ('/' == currentChar || Character.isAlphabetic(currentChar)) {
+
       result = namespaceType(allocator, fileName, parser, constant, replacements, classFileAfter);
+
+      final int remainingBytes = constant.endIndexBefore - parser.currentIndex;
+
+      if (remainingBytes > 0) {
+        GrowableByteArray.appendBytes(
+            parser.bytes, parser.currentIndex, classFileAfter, remainingBytes);
+        parser.currentIndex = constant.endIndexBefore;
+      }
+
     } else {
       result = NOT_SIGNATURE;
     }
@@ -313,6 +323,7 @@ public final class Namespacer {
           constant.startIndexAfter,
           constant.lengthBefore);
       parser.currentIndex = constant.endIndexBefore;
+      GrowableByteArray.resize(classFileAfter, constant.startIndexAfter + constant.lengthBefore);
       return null;
     }
 
@@ -402,14 +413,12 @@ public final class Namespacer {
       final List<Pair<byte[], byte[]>> replacements,
       final GrowableByteArray classFileAfter) {
 
-    int remainingLength = constant.utf8LengthBefore;
+    int remainingLength = constant.endIndexBefore - parser.currentIndex;
 
     replacing:
     for (final Pair<byte[], byte[]> replacement : replacements) {
 
-      if (replacement.left().length > constant.lengthBefore
-          || replacement.left().length
-              > (GrowableByteArray.size(parser.bytes) - parser.currentIndex)) {
+      if (replacement.left().length > remainingLength) {
         continue;
       }
 
@@ -419,8 +428,7 @@ public final class Namespacer {
         }
       }
 
-      remainingLength = constant.utf8LengthBefore - replacement.left().length;
-
+      remainingLength -= replacement.left().length;
       parser.currentIndex += replacement.left().length;
 
       GrowableByteArray.appendBytes(
@@ -436,7 +444,9 @@ public final class Namespacer {
       return allocateTruncatedClassFileErrorMessage(allocator, parser, "TODO");
     }
 
-    for (; parser.currentIndex < (parser.currentIndex + remainingLength); parser.currentIndex++) {
+    final int indexAfterReplacement = parser.currentIndex;
+
+    for (; parser.currentIndex < (indexAfterReplacement + remainingLength); parser.currentIndex++) {
 
       final byte currentChar = GrowableByteArray.get(parser.bytes, parser.currentIndex);
 
@@ -534,7 +544,9 @@ public final class Namespacer {
         case ')':
           GrowableByteArray.append(classFileAfter, currentChar);
           parser.currentIndex++;
+          break;
         case 'L':
+          GrowableByteArray.append(classFileAfter, currentChar);
           namespaceType(allocator, fileName, parser, constant, replacements, classFileAfter);
         case 'T':
           final int start = parser.currentIndex;
