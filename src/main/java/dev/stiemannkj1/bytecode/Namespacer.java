@@ -575,9 +575,14 @@ public final class Namespacer {
       return NOT_SIGNATURE;
     }
 
+    boolean closedParens = false;
+
     while (parser.currentIndex <= constant.endIndexBefore) {
       final byte currentChar = GrowableByteArray.get(parser.bytes, parser.currentIndex);
       switch (currentChar) {
+        case ')':
+          closedParens = true;
+          // fallthrough;
         case 'B':
           // fallthrough;
         case 'C':
@@ -596,13 +601,9 @@ public final class Namespacer {
           GrowableByteArray.append(classFileAfter, currentChar);
           parser.currentIndex++;
           break;
-        case ')':
-          GrowableByteArray.append(classFileAfter, currentChar);
-          parser.currentIndex++;
-          break;
         case 'L':
-          GrowableByteArray.append(classFileAfter, currentChar);
-          namespaceType(allocator, fileName, parser, constant, replacements, classFileAfter);
+          namespaceTypeSignature(
+              allocator, fileName, parser, constant, replacements, classFileAfter);
         case 'T':
           final int start = parser.currentIndex;
           final int end = ByteParser.consumeUntil(parser, ';', constant.endIndexBefore);
@@ -625,7 +626,7 @@ public final class Namespacer {
     }
 
     // TODO
-    return null;
+    return closedParens ? null : NOT_SIGNATURE;
   }
 
   private static String namespaceGenericClassSignature(

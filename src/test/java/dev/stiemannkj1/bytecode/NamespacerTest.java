@@ -543,7 +543,7 @@ final class NamespacerTest {
     return descriptors(
         replacement,
         "now.im.namespaced.and.longer.NamespacerTest$Before",
-        ExpectedAfterShorter.strings());
+        ExpectedAfterLonger.strings());
   }
 
   @MethodSource("descriptorsLongerAfter")
@@ -559,7 +559,7 @@ final class NamespacerTest {
     return descriptors(
         replacement,
         "now.im.namespaced.same12.NamespacerTest$Before",
-        ExpectedAfterShorter.strings());
+        ExpectedAfterSameSize.strings());
   }
 
   @MethodSource("descriptorsSameSize")
