@@ -197,15 +197,15 @@ final class NamespacerTest {
           "now/im/namespaced/NamespacerTest$NestedGeneric",
           "now/im/namespaced/NamespacerTest$ClassToNamespace",
           "now/im/namespaced/NamespacerTest",
-          "([[[Lnow/im/namespace/NamespacerTest$ConcreteGenericClassToNamespace$Nested;)[[[Lnow/im/namespace/NamespacerTest$ConcreteGenericClassToNamespace$Nested;",
-          "[[[Lnow/im/namespace/NamespacerTest$ConcreteGenericClassToNamespace$Nested;",
+          "([[[Lnow/im/namespaced/NamespacerTest$ConcreteGenericClassToNamespace$Nested;)[[[Lnow/im/namespaced/NamespacerTest$ConcreteGenericClassToNamespace$Nested;",
+          "[[[Lnow/im/namespaced/NamespacerTest$ConcreteGenericClassToNamespace$Nested;",
           "[[[TT;",
-          "<T:Lnow/im/namespace/NamespacerTest$ConcreteGenericClassToNamespace$Nested<TU;>;U:Lnow/im/namespace/NamespacerTest$NestedGeneric<Lnow/im/namespace/NamespacerTest$ClassToNamespace;>;>([[[TT;)[[[TT;",
-          "([[[Lnow/im/namespace/NamespacerTest$ClassToNamespace;)[[[Lnow/im/namespace/NamespacerTest$ClassToNamespace;",
-          "[[[Lnow/im/namespace/NamespacerTest$ClassToNamespace;",
-          "([Lnow/im/namespace/NamespacerTest$ClassToNamespace;)[Lnow/im/namespace/NamespacerTest$ClassToNamespace;",
-          "[Lnow/im/namespace/NamespacerTest$ClassToNamespace;",
-          "Lnow/im/namespace/NamespacerTest$AbstractGenericClassToNamespace<Lnow/im/namespace/NamespacerTest$NestedGeneric<Lnow/im/namespace/NamespacerTest$ClassToNamespace;>;>;");
+          "<T:Lnow/im/namespaced/NamespacerTest$ConcreteGenericClassToNamespace$Nested<TU;>;U:Lnow/im/namespaced/NamespacerTest$NestedGeneric<Lnow/im/namespaced/NamespacerTest$ClassToNamespace;>;>([[[TT;)[[[TT;",
+          "([[[Lnow/im/namespaced/NamespacerTest$ClassToNamespace;)[[[Lnow/im/namespaced/NamespacerTest$ClassToNamespace;",
+          "[[[Lnow/im/namespaced/NamespacerTest$ClassToNamespace;",
+          "([Lnow/im/namespaced/NamespacerTest$ClassToNamespace;)[Lnow/im/namespaced/NamespacerTest$ClassToNamespace;",
+          "[Lnow/im/namespaced/NamespacerTest$ClassToNamespace;",
+          "Lnow/im/namespaced/NamespacerTest$AbstractGenericClassToNamespace<Lnow/im/namespaced/NamespacerTest$NestedGeneric<Lnow/im/namespaced/NamespacerTest$ClassToNamespace;>;>;");
     }
   }
 
@@ -286,15 +286,15 @@ final class NamespacerTest {
           "now/im/namespaced/and/longer/NamespacerTest$NestedGeneric",
           "now/im/namespaced/and/longer/NamespacerTest$ClassToNamespace",
           "now/im/namespaced/and/longer/NamespacerTest",
-          "([[[Lnow/im/namespace/and/longer/NamespacerTest$ConcreteGenericClassToNamespace$Nested;)[[[Lnow/im/namespace/and/longer/NamespacerTest$ConcreteGenericClassToNamespace$Nested;",
-          "[[[Lnow/im/namespace/and/longer/NamespacerTest$ConcreteGenericClassToNamespace$Nested;",
+          "([[[Lnow/im/namespaced/and/longer/NamespacerTest$ConcreteGenericClassToNamespace$Nested;)[[[Lnow/im/namespaced/and/longer/NamespacerTest$ConcreteGenericClassToNamespace$Nested;",
+          "[[[Lnow/im/namespaced/and/longer/NamespacerTest$ConcreteGenericClassToNamespace$Nested;",
           "[[[TT;",
-          "<T:Lnow/im/namespace/and/longer/NamespacerTest$ConcreteGenericClassToNamespace$Nested<TU;>;U:Lnow/im/namespace/and/longer/NamespacerTest$NestedGeneric<Lnow/im/namespace/and/longer/NamespacerTest$ClassToNamespace;>;>([[[TT;)[[[TT;",
-          "([[[Lnow/im/namespace/and/longer/NamespacerTest$ClassToNamespace;)[[[Lnow/im/namespace/and/longer/NamespacerTest$ClassToNamespace;",
-          "[[[Lnow/im/namespace/and/longer/NamespacerTest$ClassToNamespace;",
-          "([Lnow/im/namespace/and/longer/NamespacerTest$ClassToNamespace;)[Lnow/im/namespace/and/longer/NamespacerTest$ClassToNamespace;",
-          "[Lnow/im/namespace/and/longer/NamespacerTest$ClassToNamespace;",
-          "Lnow/im/namespace/and/longer/NamespacerTest$AbstractGenericClassToNamespace<Lnow/im/namespace/and/longer/NamespacerTest$NestedGeneric<Lnow/im/namespace/and/longer/NamespacerTest$ClassToNamespace;>;>;");
+          "<T:Lnow/im/namespaced/and/longer/NamespacerTest$ConcreteGenericClassToNamespace$Nested<TU;>;U:Lnow/im/namespaced/and/longer/NamespacerTest$NestedGeneric<Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace;>;>([[[TT;)[[[TT;",
+          "([[[Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace;)[[[Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace;",
+          "[[[Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace;",
+          "([Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace;)[Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace;",
+          "[Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace;",
+          "Lnow/im/namespaced/and/longer/NamespacerTest$AbstractGenericClassToNamespace<Lnow/im/namespaced/and/longer/NamespacerTest$NestedGeneric<Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace;>;>;");
     }
   }
 
@@ -375,15 +375,15 @@ final class NamespacerTest {
           "now/im/namespaced/same12/NamespacerTest$NestedGeneric",
           "now/im/namespaced/same12/NamespacerTest$ClassToNamespace",
           "now/im/namespaced/same12/NamespacerTest",
-          "([[[Lnow/im/namespace/same12/NamespacerTest$ConcreteGenericClassToNamespace$Nested;)[[[Lnow/im/namespace/same12/NamespacerTest$ConcreteGenericClassToNamespace$Nested;",
-          "[[[Lnow/im/namespace/same12/NamespacerTest$ConcreteGenericClassToNamespace$Nested;",
+          "([[[Lnow/im/namespaced/same12/NamespacerTest$ConcreteGenericClassToNamespace$Nested;)[[[Lnow/im/namespaced/same12/NamespacerTest$ConcreteGenericClassToNamespace$Nested;",
+          "[[[Lnow/im/namespaced/same12/NamespacerTest$ConcreteGenericClassToNamespace$Nested;",
           "[[[TT;",
-          "<T:Lnow/im/namespace/same12/NamespacerTest$ConcreteGenericClassToNamespace$Nested<TU;>;U:Lnow/im/namespace/same12/NamespacerTest$NestedGeneric<Lnow/im/namespace/same12/NamespacerTest$ClassToNamespace;>;>([[[TT;)[[[TT;",
-          "([[[Lnow/im/namespace/same12/NamespacerTest$ClassToNamespace;)[[[Lnow/im/namespace/same12/NamespacerTest$ClassToNamespace;",
-          "[[[Lnow/im/namespace/same12/NamespacerTest$ClassToNamespace;",
-          "([Lnow/im/namespace/same12/NamespacerTest$ClassToNamespace;)[Lnow/im/namespace/same12/NamespacerTest$ClassToNamespace;",
-          "[Lnow/im/namespace/same12/NamespacerTest$ClassToNamespace;",
-          "Lnow/im/namespace/same12/NamespacerTest$AbstractGenericClassToNamespace<Lnow/im/namespace/same12/NamespacerTest$NestedGeneric<Lnow/im/namespace/same12/NamespacerTest$ClassToNamespace;>;>;");
+          "<T:Lnow/im/namespaced/same12/NamespacerTest$ConcreteGenericClassToNamespace$Nested<TU;>;U:Lnow/im/namespaced/same12/NamespacerTest$NestedGeneric<Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace;>;>([[[TT;)[[[TT;",
+          "([[[Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace;)[[[Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace;",
+          "[[[Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace;",
+          "([Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace;)[Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace;",
+          "[Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace;",
+          "Lnow/im/namespaced/same12/NamespacerTest$AbstractGenericClassToNamespace<Lnow/im/namespaced/same12/NamespacerTest$NestedGeneric<Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace;>;>;");
     }
   }
 

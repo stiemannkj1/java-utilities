@@ -426,6 +426,8 @@ public final class Namespacer {
       GrowableByteArray.append(classFileAfter, '[');
     }
 
+    // TODO test and handle arrays of primitive types
+    // TODO handle generic types T
     if (ByteParser.consumeOptional(parser, 'L')) {
       GrowableByteArray.append(classFileAfter, 'L');
     } else {
@@ -570,8 +572,6 @@ public final class Namespacer {
       final List<Pair<byte[], byte[]>> replacements,
       final GrowableByteArray classFileAfter) {
 
-    // BSIJFDCZ
-
     if (!ByteParser.consumeOptional(parser, '(')) {
       return NOT_SIGNATURE;
     }
@@ -606,9 +606,17 @@ public final class Namespacer {
           GrowableByteArray.append(classFileAfter, currentChar);
           parser.currentIndex++;
           break;
+        case '[':
+          // fallthrough;
         case 'L':
-          namespaceTypeSignature(
-              allocator, fileName, parser, constant, replacements, classFileAfter);
+          final String result =
+              namespaceTypeSignature(
+                  allocator, fileName, parser, constant, replacements, classFileAfter);
+
+          if (result != null) {
+            return result;
+          }
+
           break;
         case 'T':
           final int start = parser.currentIndex;
@@ -622,17 +630,11 @@ public final class Namespacer {
           break;
         default:
           return NOT_SIGNATURE;
-          //          return allocator
-          //              .allocateStringBuilder(DEFAULT_STRING_BUILDER_SIZE)
-          //              .append("Found unsupported type ")
-          //              .append((char) currentChar)
-          //              .append(" at: ")
-          //              .append(parser.currentIndex)
-          //              .toString();
       }
     }
 
-    // TODO
+    // TODO handle throws ^
+
     return closedParens ? null : NOT_SIGNATURE;
   }
 
@@ -648,35 +650,57 @@ public final class Namespacer {
       return NOT_SIGNATURE;
     }
 
-    boolean emptyGenerics = true;
-
     GrowableByteArray.append(classFileAfter, '<');
 
+    boolean expectsTypeNext = false;
+    boolean emptyGenerics = true;
+    byte current;
+
     while (parser.currentIndex < parser.maxIndexExclusive
-        && GrowableByteArray.get(parser.bytes, parser.currentIndex) != '>') {
+        && (current = GrowableByteArray.get(parser.bytes, parser.currentIndex)) != '>') {
 
       emptyGenerics = false;
 
-      if (ByteParser.consumeOptional(parser, '*')) {
-        GrowableByteArray.append(classFileAfter, '*');
-        continue;
-      } else if (ByteParser.consumeOptional(parser, '-')) {
-        GrowableByteArray.append(classFileAfter, '-');
-      } else if (ByteParser.consumeOptional(parser, '+')) {
-        GrowableByteArray.append(classFileAfter, '+');
-      }
-
-      if (!ByteParser.currentMatches(parser, 'L')) {
+      if (expectsTypeNext && current != 'L') {
         return NOT_SIGNATURE;
       }
 
-      final String result =
-          namespaceTypeSignature(
-              allocator, fileName, parser, constant, replacements, classFileAfter);
+      switch (current) {
+        case '*':
+          // fallthrough;
+        case '-':
+          // fallthrough;
+        case '+':
+          // TODO test invalid missing type after -/+
+          expectsTypeNext = (current != '*');
+          GrowableByteArray.append(classFileAfter, current);
+          parser.currentIndex++;
+          continue;
+        case 'T':
+          final int start = parser.currentIndex;
+          final int length = ByteParser.consumeUntil(parser, ';') - start;
 
-      if (result != null) {
-        return result;
+          if (length <= 1) {
+            return NOT_SIGNATURE;
+          }
+
+          GrowableByteArray.appendBytes(parser.bytes, start, classFileAfter, length);
+          break;
+        case 'L':
+          final String result =
+              namespaceTypeSignature(
+                  allocator, fileName, parser, constant, replacements, classFileAfter);
+
+          if (result != null) {
+            return result;
+          }
+
+          break;
+        default:
+          return NOT_SIGNATURE;
       }
+
+      expectsTypeNext = false;
     }
 
     if (emptyGenerics) {
