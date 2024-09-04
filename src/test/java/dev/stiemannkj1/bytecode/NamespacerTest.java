@@ -526,7 +526,6 @@ final class NamespacerTest {
   static Stream<Arguments> descriptorsShorterAfter() throws ReflectiveOperationException {
     final Map<String, String> replacement = new HashMap<>();
     replacement.put("dev.stiemannkj1.bytecode", "now.im.namespaced");
-    replacement.put("dev/stiemannkj1/bytecode", "now/im/namespaced");
     return descriptors(
         replacement, "now.im.namespaced.NamespacerTest$Before", ExpectedAfterShorter.strings());
   }
@@ -541,7 +540,6 @@ final class NamespacerTest {
   static Stream<Arguments> descriptorsLongerAfter() throws ReflectiveOperationException {
     final Map<String, String> replacement = new HashMap<>();
     replacement.put("dev.stiemannkj1.bytecode", "now.im.namespaced.and.longer");
-    replacement.put("dev/stiemannkj1/bytecode", "now/im/namespaced/and/longer");
     return descriptors(
         replacement,
         "now.im.namespaced.and.longer.NamespacerTest$Before",
@@ -558,7 +556,6 @@ final class NamespacerTest {
   static Stream<Arguments> descriptorsSameSize() throws ReflectiveOperationException {
     final Map<String, String> replacement = new HashMap<>();
     replacement.put("dev.stiemannkj1.bytecode", "now.im.namespaced.same12");
-    replacement.put("dev/stiemannkj1/bytecode", "now/im/namespaced/same12");
     return descriptors(
         replacement,
         "now.im.namespaced.same12.NamespacerTest$Before",
@@ -597,7 +594,6 @@ final class NamespacerTest {
     readBytes(ClassToNamespace.class, classFileBefore);
     final Map<String, String> replacement = new HashMap<>();
     replacement.put("dev.stiemannkj1.bytecode", "now.im.namespaced");
-    replacement.put("dev/stiemannkj1/bytecode", "now/im/namespaced");
     final ClassGenerator classGenerator = new ClassGenerator(this.getClass().getClassLoader());
     final GrowableByteArray classFileAfter =
         Allocators.JVM_HEAP.allocateObject(GrowableByteArray::new);

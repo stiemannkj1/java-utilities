@@ -44,6 +44,46 @@ public final class Namespacer {
           Pair.of(
               entry.getKey().getBytes(StandardCharsets.UTF_8),
               entry.getValue().getBytes(StandardCharsets.UTF_8)));
+      replacements.add(
+          Pair.of(
+              ("/META-INF/services/" + entry.getKey()).getBytes(StandardCharsets.UTF_8),
+              ("/META-INF/services/" + entry.getValue()).getBytes(StandardCharsets.UTF_8)));
+      replacements.add(
+          Pair.of(
+              ("META-INF/services/" + entry.getKey()).getBytes(StandardCharsets.UTF_8),
+              ("META-INF/services/" + entry.getValue()).getBytes(StandardCharsets.UTF_8)));
+      replacements.add(
+          Pair.of(
+              ("/WEB-INF/classes/META-INF/services/" + entry.getKey())
+                  .getBytes(StandardCharsets.UTF_8),
+              ("/WEB-INF/classes/META-INF/services/" + entry.getValue())
+                  .getBytes(StandardCharsets.UTF_8)));
+      replacements.add(
+          Pair.of(
+              ("WEB-INF/classes/META-INF/services/" + entry.getKey())
+                  .getBytes(StandardCharsets.UTF_8),
+              ("WEB-INF/classes/META-INF/services/" + entry.getValue())
+                  .getBytes(StandardCharsets.UTF_8)));
+      replacements.add(
+          Pair.of(
+              entry.getKey().replace('.', '/').getBytes(StandardCharsets.UTF_8),
+              entry.getValue().replace('.', '/').getBytes(StandardCharsets.UTF_8)));
+      replacements.add(
+          Pair.of(
+              ("/" + entry.getKey().replace('.', '/')).getBytes(StandardCharsets.UTF_8),
+              ("/" + entry.getValue().replace('.', '/')).getBytes(StandardCharsets.UTF_8)));
+      replacements.add(
+          Pair.of(
+              ("/WEB-INF/classes/" + entry.getKey().replace('.', '/'))
+                  .getBytes(StandardCharsets.UTF_8),
+              ("/WEB-INF/classes/" + entry.getValue().replace('.', '/'))
+                  .getBytes(StandardCharsets.UTF_8)));
+      replacements.add(
+          Pair.of(
+              ("WEB-INF/classes/" + entry.getKey().replace('.', '/'))
+                  .getBytes(StandardCharsets.UTF_8),
+              ("WEB-INF/classes/" + entry.getValue().replace('.', '/'))
+                  .getBytes(StandardCharsets.UTF_8)));
     }
 
     final ByteParser parser = allocator.allocateObject(ByteParser::new);
@@ -398,7 +438,7 @@ public final class Namespacer {
       return result;
     }
 
-    if (ByteParser.consumeOptional(parser, '<')) {
+    if (ByteParser.currentMatches(parser, '<')) {
       result =
           namespaceGenericClassSignature(
               allocator, fileName, parser, constant, replacements, classFileAfter);
@@ -608,7 +648,8 @@ public final class Namespacer {
 
     GrowableByteArray.append(classFileAfter, '<');
 
-    while (GrowableByteArray.get(parser.bytes, parser.currentIndex) != '>') {
+    while (parser.currentIndex <= constant.endIndexBefore
+        && GrowableByteArray.get(parser.bytes, parser.currentIndex) != '>') {
 
       emptyGenerics = false;
 
@@ -863,9 +904,14 @@ public final class Namespacer {
       return size(parser.bytes) <= parser.currentIndex;
     }
 
-    private static boolean currentMatches(final ByteParser parser, final byte _byte) {
+    private static boolean currentMatches(final ByteParser parser, final char char_) {
+      Assert.assertAsciiPrintable(char_);
+      return currentMatches(parser, (byte) char_);
+    }
+
+    private static boolean currentMatches(final ByteParser parser, final byte byte_) {
       return GrowableByteArray.size(parser.bytes) > parser.currentIndex
-          && GrowableByteArray.get(parser.bytes, parser.currentIndex) == _byte;
+          && GrowableByteArray.get(parser.bytes, parser.currentIndex) == byte_;
     }
 
     private static boolean consumeOptional(final ByteParser parser, final char ascii) {
