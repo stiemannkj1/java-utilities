@@ -29,6 +29,10 @@ final class NamespacerTest {
   // TODO handle manifest and properties files. Merging properties should probably require users to
   // handle conflicts by creating a properties file with any conflicting properties.
   // TODO consider merging Xml files
+  // TODO instead of handling all the merging, only merge binary files if they exist, maybe handle
+  // log4j, but maybe not
+  // plugin should auto-fail on conflicts and require explicitly choosing from the provided jars or
+  // providing a deconflicted file in the project.
 
   public static final class Before {
     public static List<String> strings() {

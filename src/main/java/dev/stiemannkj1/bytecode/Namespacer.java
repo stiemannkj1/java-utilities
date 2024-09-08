@@ -29,6 +29,17 @@ public final class Namespacer {
       "LocalVariableTable".getBytes(StandardCharsets.UTF_8);
   private static final byte[] LINE_NUMBER_TABLE =
       "LineNumberTable".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] Lookup = "Lookup".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] InnerClasses = "InnerClasses".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] NestMembers = "NestMembers".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] SourceFile = "SourceFile".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] Exceptions = "Exceptions".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] StackMapTable = "StackMapTable".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] RuntimeVisibleAnnotations =
+      "RuntimeVisibleAnnotations".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] Code = "Code".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] Init = "<init>".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] Clinit = "<clinit>".getBytes(StandardCharsets.UTF_8);
 
   public static String namespace(
       final Allocator allocator,
