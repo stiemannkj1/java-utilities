@@ -242,7 +242,6 @@ public final class Namespacer {
           .toString();
     }
 
-    // TODO fix length
     GrowableByteArray.appendBytes(
         classFileBefore,
         parser.currentIndex,
@@ -328,7 +327,6 @@ public final class Namespacer {
       final List<Pair<byte[], byte[]>> replacements,
       final GrowableByteArray classFileAfter) {
 
-    // TODO test empty
     if (constant.lengthBefore == 0) {
       GrowableByteArray.appendBytes(
           parser.bytes, constant.startIndexBefore, classFileAfter, constant.lengthBefore);
@@ -575,10 +573,6 @@ public final class Namespacer {
 
       GrowableByteArray.appendBytes(
           replacement.right(), 0, classFileAfter, replacement.right().length);
-      // TODO add simple test for feedback
-      // TODO fix bugs
-      // TODO add complex tests with field refs, method refs, lambdas, invokedynamic, method
-      // descriptors etc.
       break;
     }
 
@@ -735,7 +729,6 @@ public final class Namespacer {
         case '-':
           // fallthrough;
         case '+':
-          // TODO test invalid missing type after -/+
           if (expectsTypeNext) {
             return NOT_SIGNATURE;
           }

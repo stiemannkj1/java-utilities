@@ -38,6 +38,7 @@ final class NamespacerTest {
     public static List<String> strings() {
       return Arrays.asList(
           // Invalid signatures:
+          "",
           "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace",
           "dev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace;",
           "dev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace ",
@@ -46,6 +47,22 @@ final class NamespacerTest {
           "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace$Nested;Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace$Nested;",
           "Ldev/stiemannkj1/bytecode/NamespacerTest$NestedGeneric<Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace;",
           "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace;>;>;>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-b>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-->;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-+>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-*>;",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-b>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-->;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-+>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-*>;)V",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+b>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+->;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<++>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+*>;",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+b>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+->;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<++>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+*>;)V",
           "dev.stiemannkj1.bytecode.NamespacerTest$ConcreteGenericClassToNamespace",
           "META-INF/services/dev.stiemannkj1.bytecode.NamespacerTest$ConcreteGenericClassToNamespace",
           "/META-INF/services/dev.stiemannkj1.bytecode.NamespacerTest$ConcreteGenericClassToNamespace",
@@ -76,7 +93,7 @@ final class NamespacerTest {
           "(Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace<+Ljava/util/List;>;)V",
           "Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace<*>;",
           "(Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace<*>;)V",
-          "Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace<-Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace;*+Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace;>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace<-[[[Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace;*+[[[Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace;>;",
           "(BSIJFDCZLdev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace;BSIJFDCZ)V",
           "TT;",
           "<T:Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace;>(BSIJFDCZTT;BSIJFDCZ)V",
@@ -144,6 +161,7 @@ final class NamespacerTest {
     public static List<String> strings() {
       return Arrays.asList(
           // Invalid signatures:
+          "",
           "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace",
           "dev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace;",
           "dev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace ",
@@ -152,6 +170,22 @@ final class NamespacerTest {
           "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace$Nested;Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace$Nested;",
           "Ldev/stiemannkj1/bytecode/NamespacerTest$NestedGeneric<Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace;",
           "Lnow/im/namespaced/NamespacerTest$ConcreteGenericClassToNamespace<Lnow/im/namespaced/NamespacerTest$ConcreteGenericClassToNamespace<Lnow/im/namespaced/NamespacerTest$ConcreteGenericClassToNamespace<Lnow/im/namespaced/NamespacerTest$ConcreteGenericClassToNamespace;>;>;>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-b>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-->;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-+>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-*>;",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-b>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-->;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-+>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-*>;)V",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+b>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+->;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<++>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+*>;",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+b>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+->;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<++>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+*>;)V",
           "now.im.namespaced.NamespacerTest$ConcreteGenericClassToNamespace",
           "META-INF/services/now.im.namespaced.NamespacerTest$ConcreteGenericClassToNamespace",
           "/META-INF/services/now.im.namespaced.NamespacerTest$ConcreteGenericClassToNamespace",
@@ -182,7 +216,7 @@ final class NamespacerTest {
           "(Lnow/im/namespaced/NamespacerTest$ClassToNamespace<+Ljava/util/List;>;)V",
           "Lnow/im/namespaced/NamespacerTest$ClassToNamespace<*>;",
           "(Lnow/im/namespaced/NamespacerTest$ClassToNamespace<*>;)V",
-          "Lnow/im/namespaced/NamespacerTest$ClassToNamespace<-Lnow/im/namespaced/NamespacerTest$ClassToNamespace;*+Lnow/im/namespaced/NamespacerTest$ClassToNamespace;>;",
+          "Lnow/im/namespaced/NamespacerTest$ClassToNamespace<-[[[Lnow/im/namespaced/NamespacerTest$ClassToNamespace;*+[[[Lnow/im/namespaced/NamespacerTest$ClassToNamespace;>;",
           "(BSIJFDCZLnow/im/namespaced/NamespacerTest$ClassToNamespace;BSIJFDCZ)V",
           "TT;",
           "<T:Lnow/im/namespaced/NamespacerTest$ClassToNamespace;>(BSIJFDCZTT;BSIJFDCZ)V",
@@ -250,6 +284,7 @@ final class NamespacerTest {
     public static List<String> strings() {
       return Arrays.asList(
           // Invalid signatures:
+          "",
           "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace",
           "dev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace;",
           "dev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace ",
@@ -258,6 +293,22 @@ final class NamespacerTest {
           "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace$Nested;Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace$Nested;",
           "Ldev/stiemannkj1/bytecode/NamespacerTest$NestedGeneric<Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace;",
           "Lnow/im/namespaced/and/longer/NamespacerTest$ConcreteGenericClassToNamespace<Lnow/im/namespaced/and/longer/NamespacerTest$ConcreteGenericClassToNamespace<Lnow/im/namespaced/and/longer/NamespacerTest$ConcreteGenericClassToNamespace<Lnow/im/namespaced/and/longer/NamespacerTest$ConcreteGenericClassToNamespace;>;>;>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-b>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-->;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-+>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-*>;",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-b>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-->;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-+>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-*>;)V",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+b>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+->;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<++>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+*>;",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+b>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+->;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<++>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+*>;)V",
           "now.im.namespaced.and.longer.NamespacerTest$ConcreteGenericClassToNamespace",
           "META-INF/services/now.im.namespaced.and.longer.NamespacerTest$ConcreteGenericClassToNamespace",
           "/META-INF/services/now.im.namespaced.and.longer.NamespacerTest$ConcreteGenericClassToNamespace",
@@ -288,7 +339,7 @@ final class NamespacerTest {
           "(Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace<+Ljava/util/List;>;)V",
           "Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace<*>;",
           "(Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace<*>;)V",
-          "Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace<-Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace;*+Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace;>;",
+          "Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace<-[[[Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace;*+[[[Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace;>;",
           "(BSIJFDCZLnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace;BSIJFDCZ)V",
           "TT;",
           "<T:Lnow/im/namespaced/and/longer/NamespacerTest$ClassToNamespace;>(BSIJFDCZTT;BSIJFDCZ)V",
@@ -356,6 +407,7 @@ final class NamespacerTest {
     public static List<String> strings() {
       return Arrays.asList(
           // Invalid signatures:
+          "",
           "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace",
           "dev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace;",
           "dev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace ",
@@ -364,6 +416,22 @@ final class NamespacerTest {
           "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace$Nested;Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace$Nested;",
           "Ldev/stiemannkj1/bytecode/NamespacerTest$NestedGeneric<Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace;",
           "Lnow/im/namespaced/same12/NamespacerTest$ConcreteGenericClassToNamespace<Lnow/im/namespaced/same12/NamespacerTest$ConcreteGenericClassToNamespace<Lnow/im/namespaced/same12/NamespacerTest$ConcreteGenericClassToNamespace<Lnow/im/namespaced/same12/NamespacerTest$ConcreteGenericClassToNamespace;>;>;>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-b>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-->;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-+>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-*>;",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-b>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-->;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-+>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-*>;)V",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+b>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+->;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<++>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+*>;",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+b>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+->;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<++>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+*>;)V",
           "now.im.namespaced.same12.NamespacerTest$ConcreteGenericClassToNamespace",
           "META-INF/services/now.im.namespaced.same12.NamespacerTest$ConcreteGenericClassToNamespace",
           "/META-INF/services/now.im.namespaced.same12.NamespacerTest$ConcreteGenericClassToNamespace",
@@ -394,7 +462,7 @@ final class NamespacerTest {
           "(Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace<+Ljava/util/List;>;)V",
           "Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace<*>;",
           "(Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace<*>;)V",
-          "Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace<-Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace;*+Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace;>;",
+          "Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace<-[[[Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace;*+[[[Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace;>;",
           "(BSIJFDCZLnow/im/namespaced/same12/NamespacerTest$ClassToNamespace;BSIJFDCZ)V",
           "TT;",
           "<T:Lnow/im/namespaced/same12/NamespacerTest$ClassToNamespace;>(BSIJFDCZTT;BSIJFDCZ)V",
@@ -462,6 +530,7 @@ final class NamespacerTest {
     public static List<String> strings() {
       return Arrays.asList(
           // Invalid signatures:
+          "",
           "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace",
           "dev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace;",
           "dev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace ",
@@ -470,6 +539,22 @@ final class NamespacerTest {
           "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace$Nested;Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace$Nested;",
           "Ldev/stiemannkj1/bytecode/NamespacerTest$NestedGeneric<Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace;",
           "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<Lnow/im/namespaced/NamespacerTest$ConcreteGenericClassToNamespace$Nested<TT;>.NestedNested<TT;>;>;>;>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-b>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-->;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-+>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-*>;",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-b>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-->;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-+>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<-*>;)V",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+b>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+->;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<++>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+*>;",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+b>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+->;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<++>;)V",
+          "(Ldev/stiemannkj1/bytecode/NamespacerTest$ConcreteGenericClassToNamespace<+*>;)V",
           "dev.stiemannkj1.bytecode.NamespacerTest$ConcreteGenericClassToNamespace",
           "META-INF/services/dev.stiemannkj1.bytecode.NamespacerTest$ConcreteGenericClassToNamespace",
           "/META-INF/services/dev.stiemannkj1.bytecode.NamespacerTest$ConcreteGenericClassToNamespace",
@@ -500,7 +585,7 @@ final class NamespacerTest {
           "(Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace<+Ljava/util/List;>;)V",
           "Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace<*>;",
           "(Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace<*>;)V",
-          "Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace<-Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace;*+Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace;>;",
+          "Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace<-[[[Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace;*+[[[Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace;>;",
           "(BSIJFDCZLdev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace;BSIJFDCZ)V",
           "TT;",
           "<T:Ldev/stiemannkj1/bytecode/NamespacerTest$ClassToNamespace;>(BSIJFDCZTT;BSIJFDCZ)V",
@@ -897,6 +982,7 @@ final class NamespacerTest {
     return aClass.getMethod(methodName, argTypes).invoke(object, args);
   }
 
+  @SuppressWarnings("unused")
   public static final class ClassToNamespace {
 
     public ClassToNamespace() {}
@@ -907,12 +993,14 @@ final class NamespacerTest {
     }
   }
 
+  @SuppressWarnings("unused")
   public static final class NestedGeneric<T> {
     public T getValue() {
       return null;
     }
   }
 
+  @SuppressWarnings("unused")
   public abstract static class AbstractGenericClassToNamespace<
       T extends NestedGeneric<ClassToNamespace>> {
 
@@ -940,6 +1028,7 @@ final class NamespacerTest {
     public abstract ClassToNamespace abstractReturnAndArg(final ClassToNamespace t);
   }
 
+  @SuppressWarnings("unused")
   public static final class ConcreteGenericClassToNamespace
       extends AbstractGenericClassToNamespace<NestedGeneric<ClassToNamespace>> {
 
@@ -1000,14 +1089,19 @@ final class NamespacerTest {
         char char2,
         boolean boolean2) {}
 
+    @SuppressWarnings("unused")
     public static final class ThrowableToNamespace extends Throwable {}
 
+    @SuppressWarnings("unused")
     public static void throwing() throws ThrowableToNamespace, Exception {}
 
+    @SuppressWarnings("unused")
     public static <T extends ThrowableToNamespace> void throwingGeneric1() throws T, Exception {}
 
+    @SuppressWarnings("unused")
     public static <T extends IOException> void throwingGeneric2() throws T, ThrowableToNamespace {}
 
+    @SuppressWarnings("unused")
     public final class Nested<T extends NestedGeneric<ClassToNamespace>> {
       public final class NestedNested<U extends T> {}
 
