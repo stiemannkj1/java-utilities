@@ -9,6 +9,7 @@ import dev.stiemannkj1.util.Assert;
 import dev.stiemannkj1.util.Pair;
 import dev.stiemannkj1.util.References.LongRef;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -426,12 +427,49 @@ public final class Namespacer {
       GrowableByteArray.append(classFileAfter, '[');
     }
 
-    // TODO test and handle arrays of primitive types
-    // TODO handle generic types T
-    if (ByteParser.consumeOptional(parser, 'L')) {
-      GrowableByteArray.append(classFileAfter, 'L');
-    } else {
+    if (parser.currentIndex >= parser.maxIndexExclusive) {
       return NOT_SIGNATURE;
+    }
+
+    // See https://docs.oracle.com/javase/specs/jvms/se22/html/jvms-4.html#jvms-4.7.9.1
+    final byte current = GrowableByteArray.get(parser.bytes, parser.currentIndex);
+
+    switch (current) {
+      case 'B':
+        // fallthrough;
+      case 'C':
+        // fallthrough;
+      case 'D':
+        // fallthrough;
+      case 'F':
+        // fallthrough;
+      case 'I':
+        // fallthrough;
+      case 'J':
+        // fallthrough;
+      case 'S':
+        // fallthrough;
+      case 'Z':
+        GrowableByteArray.append(classFileAfter, current);
+        parser.currentIndex++;
+        return null;
+      case 'V':
+        // fallthrough;
+      default:
+        return NOT_SIGNATURE;
+      case 'T':
+        final int start = parser.currentIndex;
+        final int end = ByteParser.consumeUntil(parser, ';');
+
+        if (end < 0) {
+          return NOT_SIGNATURE;
+        }
+
+        GrowableByteArray.appendBytes(parser.bytes, start, classFileAfter, end - start);
+        return null;
+      case 'L':
+        GrowableByteArray.append(classFileAfter, 'L');
+        parser.currentIndex++;
     }
 
     String result =
@@ -446,6 +484,37 @@ public final class Namespacer {
     }
 
     if (ByteParser.currentMatches(parser, '<')) {
+      result =
+          namespaceGenericClassSignature(
+              allocator, fileName, parser, constant, replacements, classFileAfter);
+
+      if (result == NOT_SIGNATURE) {
+        return NOT_SIGNATURE;
+      }
+
+      if (result != null) {
+        return result;
+      }
+    }
+
+    if (ByteParser.consumeOptional(parser, '.')) {
+
+      GrowableByteArray.append(classFileAfter, '.');
+
+      result =
+          namespaceType(
+              allocator,
+              fileName,
+              parser,
+              constant,
+              // TODO handle namespacing nested types.
+              Collections.emptyList(),
+              classFileAfter);
+
+      if (result == NOT_SIGNATURE) {
+        return NOT_SIGNATURE;
+      }
+
       result =
           namespaceGenericClassSignature(
               allocator, fileName, parser, constant, replacements, classFileAfter);
@@ -580,35 +649,20 @@ public final class Namespacer {
 
     boolean closedParens = false;
 
+    namespaceArgsAndReturnValue:
     while (parser.currentIndex < parser.maxIndexExclusive) {
       final byte currentChar = GrowableByteArray.get(parser.bytes, parser.currentIndex);
       switch (currentChar) {
         case ')':
           closedParens = true;
           // fallthrough;
-        case 'B':
-          // fallthrough;
-        case 'C':
-          // fallthrough;
-        case 'D':
-          // fallthrough;
-        case 'F':
-          // fallthrough;
-        case 'I':
-          // fallthrough;
-        case 'J':
-          // fallthrough;
-        case 'S':
-          // fallthrough;
-        case 'Z':
-          // fallthrough;
         case 'V':
           GrowableByteArray.append(classFileAfter, currentChar);
           parser.currentIndex++;
           break;
-        case '[':
-          // fallthrough;
-        case 'L':
+        case '^':
+          break namespaceArgsAndReturnValue;
+        default:
           final String result =
               namespaceTypeSignature(
                   allocator, fileName, parser, constant, replacements, classFileAfter);
@@ -618,24 +672,27 @@ public final class Namespacer {
           }
 
           break;
-        case 'T':
-          final int start = parser.currentIndex;
-          final int end = ByteParser.consumeUntil(parser, ';');
-
-          if (end < 0) {
-            return NOT_SIGNATURE;
-          }
-
-          GrowableByteArray.appendBytes(parser.bytes, start, classFileAfter, end - start);
-          break;
-        default:
-          return NOT_SIGNATURE;
       }
     }
 
-    // TODO handle throws ^
+    if (!closedParens) {
+      return NOT_SIGNATURE;
+    }
 
-    return closedParens ? null : NOT_SIGNATURE;
+    while (ByteParser.consumeOptional(parser, '^')) {
+
+      GrowableByteArray.append(classFileAfter, '^');
+
+      final String result =
+          namespaceTypeSignature(
+              allocator, fileName, parser, constant, replacements, classFileAfter);
+
+      if (result != null) {
+        return result;
+      }
+    }
+
+    return null;
   }
 
   private static String namespaceGenericClassSignature(
@@ -661,10 +718,6 @@ public final class Namespacer {
 
       emptyGenerics = false;
 
-      if (expectsTypeNext && current != 'L') {
-        return NOT_SIGNATURE;
-      }
-
       switch (current) {
         case '*':
           // fallthrough;
@@ -672,21 +725,20 @@ public final class Namespacer {
           // fallthrough;
         case '+':
           // TODO test invalid missing type after -/+
+          if (expectsTypeNext) {
+            return NOT_SIGNATURE;
+          }
+
           expectsTypeNext = (current != '*');
           GrowableByteArray.append(classFileAfter, current);
           parser.currentIndex++;
           continue;
-        case 'T':
-          final int start = parser.currentIndex;
-          final int length = ByteParser.consumeUntil(parser, ';') - start;
-
-          if (length <= 1) {
-            return NOT_SIGNATURE;
-          }
-
-          GrowableByteArray.appendBytes(parser.bytes, start, classFileAfter, length);
-          break;
         case 'L':
+          // fallthrough;
+        case 'T':
+          // fallthrough;
+        case '[':
+          // fallthrough;
           final String result =
               namespaceTypeSignature(
                   allocator, fileName, parser, constant, replacements, classFileAfter);
