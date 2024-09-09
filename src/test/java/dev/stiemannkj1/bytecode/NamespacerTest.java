@@ -6,7 +6,7 @@ import static dev.stiemannkj1.util.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import dev.stiemannkj1.allocator.Allocators;
+import dev.stiemannkj1.bytecode.Namespacer.ObjectPool;
 import dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray;
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,13 +18,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 final class NamespacerTest {
+  public static final int INITIAL_CLASS_ARRAY_CAPACITY = 1 >> 16;
   // TODO namespace and merge class names in META-INF/services and META-INF/groovy
   // TODO handle manifest and properties files. Merging properties should probably require users to
   // handle conflicts by creating a properties file with any conflicting properties.
@@ -663,16 +663,16 @@ final class NamespacerTest {
       final List<String> expectedAfter)
       throws ReflectiveOperationException {
 
-    final GrowableByteArray classFileBefore =
-        Allocators.JVM_HEAP.allocateObject(GrowableByteArray::new);
+    final GrowableByteArray classFileBefore = new GrowableByteArray(INITIAL_CLASS_ARRAY_CAPACITY);
     readBytes(Before.class, classFileBefore);
     final ClassGenerator classGenerator = new ClassGenerator(NamespacerTest.class.getClassLoader());
-    final GrowableByteArray classFileAfter =
-        Allocators.JVM_HEAP.allocateObject(GrowableByteArray::new);
+    final GrowableByteArray classFileAfter = new GrowableByteArray(INITIAL_CLASS_ARRAY_CAPACITY);
+
+    final ObjectPool objectPool = new ObjectPool();
 
     assertNull(
         Namespacer.namespace(
-            Allocators.JVM_HEAP,
+            objectPool,
             classNameToPath(Before.class),
             classFileBefore,
             replacements,
@@ -763,14 +763,13 @@ final class NamespacerTest {
   @Test
   void it_namespaces_class() throws Throwable {
 
-    final GrowableByteArray classFileBefore =
-        Allocators.JVM_HEAP.allocateObject(GrowableByteArray::new);
+    final GrowableByteArray classFileBefore = new GrowableByteArray(INITIAL_CLASS_ARRAY_CAPACITY);
     final Map<String, String> replacement = new HashMap<>();
     replacement.put("dev.stiemannkj1.bytecode", "now.im.namespaced");
     final ClassGenerator classGenerator = new ClassGenerator(this.getClass().getClassLoader());
-    final GrowableByteArray classFileAfter =
-        Allocators.JVM_HEAP.allocateObject(GrowableByteArray::new);
+    final GrowableByteArray classFileAfter = new GrowableByteArray(INITIAL_CLASS_ARRAY_CAPACITY);
 
+    final ObjectPool objectPool = new ObjectPool();
     String className = "";
 
     try {
@@ -782,7 +781,7 @@ final class NamespacerTest {
       readBytes(ConcreteGenericClassToNamespace.ThrowableToNamespace.class, classFileBefore);
       assertNull(
           Namespacer.namespace(
-              Allocators.JVM_HEAP,
+              objectPool,
               classNameToPath(ClassToNamespace.class),
               classFileBefore,
               replacement,
@@ -796,7 +795,7 @@ final class NamespacerTest {
       readBytes(ClassToNamespace.class, classFileBefore);
       assertNull(
           Namespacer.namespace(
-              Allocators.JVM_HEAP,
+              objectPool,
               classNameToPath(ClassToNamespace.class),
               classFileBefore,
               replacement,
@@ -815,7 +814,7 @@ final class NamespacerTest {
       readBytes(NestedGeneric.class, classFileBefore);
       assertNull(
           Namespacer.namespace(
-              Allocators.JVM_HEAP,
+              objectPool,
               classNameToPath(AbstractGenericClassToNamespace.class),
               classFileBefore,
               replacement,
@@ -833,7 +832,7 @@ final class NamespacerTest {
       readBytes(AbstractGenericClassToNamespace.class, classFileBefore);
       assertNull(
           Namespacer.namespace(
-              Allocators.JVM_HEAP,
+              objectPool,
               classNameToPath(AbstractGenericClassToNamespace.class),
               classFileBefore,
               replacement,
@@ -848,7 +847,7 @@ final class NamespacerTest {
       readBytes(ConcreteGenericClassToNamespace.Nested.class, classFileBefore);
       assertNull(
           Namespacer.namespace(
-              Allocators.JVM_HEAP,
+              objectPool,
               classNameToPath(ClassToNamespace.class),
               classFileBefore,
               replacement,
@@ -862,7 +861,7 @@ final class NamespacerTest {
       readBytes(ConcreteGenericClassToNamespace.class, classFileBefore);
       assertNull(
           Namespacer.namespace(
-              Allocators.JVM_HEAP,
+              objectPool,
               classNameToPath(ConcreteGenericClassToNamespace.class),
               classFileBefore,
               replacement,

@@ -2,20 +2,17 @@ package dev.stiemannkj1.collection.arrays;
 
 import static dev.stiemannkj1.util.Assert.*;
 
-import dev.stiemannkj1.allocator.Allocators.Allocator;
-import dev.stiemannkj1.util.Assert;
 import java.io.IOException;
 import java.io.InputStream;
 
 public final class GrowableArrays {
 
   public static final class GrowableByteArray {
-    private Allocator allocator;
     private byte[] bytes;
     private int size;
 
-    public GrowableByteArray(final Allocator allocator) {
-      this.allocator = Assert.assertNotNull(allocator);
+    public GrowableByteArray(final int initialCapacity) {
+      bytes = new byte[initialCapacity];
     }
 
     public static void clear(final GrowableByteArray array) {
@@ -46,11 +43,6 @@ public final class GrowableArrays {
 
     public static boolean growIfNecessary(final GrowableByteArray array, final int newSize) {
 
-      if (array.bytes == null) {
-        array.bytes = array.allocator.allocateBytes(newSize);
-        return true;
-      }
-
       checkMaxValue(newSize);
 
       if (newSize <= array.bytes.length) {
@@ -58,9 +50,8 @@ public final class GrowableArrays {
       }
 
       final byte[] oldArray = array.bytes;
-      array.bytes = array.allocator.allocateBytes(newSize);
+      array.bytes = new byte[newSize];
       System.arraycopy(oldArray, 0, array.bytes, 0, oldArray.length);
-      array.allocator.deallocateObject(oldArray);
       return true;
     }
 

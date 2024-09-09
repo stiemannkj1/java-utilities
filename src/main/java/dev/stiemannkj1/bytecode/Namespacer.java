@@ -3,15 +3,11 @@ package dev.stiemannkj1.bytecode;
 import static dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray.size;
 import static dev.stiemannkj1.util.Assert.*;
 
-import dev.stiemannkj1.allocator.Allocators.Allocator;
 import dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray;
 import dev.stiemannkj1.util.Assert;
-import dev.stiemannkj1.util.Pair;
 import dev.stiemannkj1.util.References.LongRef;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public final class Namespacer {
 
@@ -41,70 +37,167 @@ public final class Namespacer {
   private static final byte[] Init = "<init>".getBytes(StandardCharsets.UTF_8);
   private static final byte[] Clinit = "<clinit>".getBytes(StandardCharsets.UTF_8);
 
+  private static final class Replacements {
+
+    private static final Replacements EMPTY = new Replacements();
+
+    static {
+      reset(EMPTY, Collections.emptyMap());
+    }
+
+    private Map<String, String> replacementsMap;
+    private byte[][] before;
+    private byte[][] after;
+    private int length;
+
+    private static void reset(
+        final Replacements replacements, final Map<String, String> replacementsMap) {
+
+      if (replacements.replacementsMap != Objects.requireNonNull(replacementsMap)) {
+
+        replacements.replacementsMap = replacementsMap;
+
+        final int replacementsSize = replacementsMap.size() * 16;
+
+        if (replacements.before == null || replacementsSize > replacements.before.length) {
+          replacements.before = new byte[replacementsSize][];
+          replacements.after = new byte[replacementsSize][];
+        }
+
+        final Set<Map.Entry<String, String>> entries = replacementsMap.entrySet();
+
+        int i = 0;
+        for (final Map.Entry<String, String> entry : entries) {
+
+          replacements.before[i] = entry.getKey().getBytes(StandardCharsets.UTF_8);
+          final byte[] beforeWithPeriods = replacements.before[i];
+          replacements.after[i] = entry.getValue().getBytes(StandardCharsets.UTF_8);
+          final byte[] afterWithPeriods = replacements.after[i];
+
+          i++;
+
+          final String metaInfServices = "META-INF/services/";
+          replacements.before[i] = prependAscii(metaInfServices, beforeWithPeriods);
+          replacements.after[i] = prependAscii(metaInfServices, afterWithPeriods);
+
+          i++;
+
+          final String metaInfServicesAbsolute = "/META-INF/services/";
+          replacements.before[i] = prependAscii(metaInfServicesAbsolute, beforeWithPeriods);
+          replacements.after[i] = prependAscii(metaInfServicesAbsolute, afterWithPeriods);
+
+          i++;
+
+          final String webInfServices = "WEB-INF/classes/META-INF/services/";
+          replacements.before[i] = prependAscii(webInfServices, beforeWithPeriods);
+          replacements.after[i] = prependAscii(webInfServices, afterWithPeriods);
+
+          i++;
+
+          final String webInfServicesAbsolute = "/WEB-INF/classes/META-INF/services/";
+          replacements.before[i] = prependAscii(webInfServicesAbsolute, beforeWithPeriods);
+          replacements.after[i] = prependAscii(webInfServicesAbsolute, afterWithPeriods);
+
+          i++;
+
+          replacements.before[i] =
+              toInternalName(Arrays.copyOf(beforeWithPeriods, beforeWithPeriods.length));
+          final byte[] beforeWithSlashes = replacements.before[i];
+          replacements.after[i] =
+              toInternalName(Arrays.copyOf(afterWithPeriods, afterWithPeriods.length));
+          final byte[] afterWithSlashes = replacements.after[i];
+
+          i++;
+
+          replacements.before[i] = prependAscii("/", beforeWithSlashes);
+          replacements.after[i] = prependAscii("/", afterWithSlashes);
+
+          i++;
+
+          replacements.before[i] = prependAscii("WEB-INF/classes/", beforeWithSlashes);
+          replacements.after[i] = prependAscii("WEB-INF/classes/", afterWithSlashes);
+
+          i++;
+
+          replacements.before[i] = prependAscii("/WEB-INF/classes/", beforeWithSlashes);
+          replacements.after[i] = prependAscii("/WEB-INF/classes/", afterWithSlashes);
+
+          i++;
+        }
+
+        replacements.length = i;
+      }
+    }
+
+    private static byte[] toInternalName(final byte[] utf8) {
+
+      for (int i = 0; i < utf8.length; i++) {
+
+        if (utf8[i] == '.') {
+          utf8[i] = '/';
+        }
+      }
+
+      return utf8;
+    }
+
+    private static byte[] prependAscii(final String string, final byte[] utf8) {
+
+      final byte[] prependedUtf8 = new byte[string.length() + utf8.length];
+
+      for (int i = 0; i < string.length(); i++) {
+
+        final char current = string.charAt(i);
+
+        if (ASSERT_ENABLED) {
+          assertAsciiPrintable(current);
+          final int i_ = i;
+          assertTrue(
+              i < prependedUtf8.length,
+              () ->
+                  i_
+                      + " out of bounds for \""
+                      + new String(prependedUtf8, StandardCharsets.UTF_8)
+                      + "\" with length: "
+                      + prependedUtf8.length);
+        }
+
+        prependedUtf8[i] = (byte) current;
+      }
+
+      System.arraycopy(utf8, 0, prependedUtf8, string.length(), utf8.length);
+      return prependedUtf8;
+    }
+  }
+
+  public static final class ObjectPool {
+    private Replacements replacements = new Replacements();
+    private ByteParser byteParser = new ByteParser();
+    private LongRef u8Ref = new LongRef();
+    private Utf8ConstantInfo utf8ConstantInfo = new Utf8ConstantInfo();
+    private StringBuilder errorMessageBuilder = new StringBuilder(DEFAULT_STRING_BUILDER_SIZE);
+
+    private static StringBuilder errorMessageBuilder(final ObjectPool objectPool) {
+      return objectPool.errorMessageBuilder;
+    }
+
+    public ObjectPool() {}
+  }
+
   public static String namespace(
-      final Allocator allocator,
+      final ObjectPool objectPool,
       final String fileName,
       final GrowableByteArray classFileBefore,
       final Map<String, String> replacementsMap,
       final GrowableByteArray classFileAfter) {
 
-    final List<Pair<byte[], byte[]>> replacements = allocator.allocateList(replacementsMap.size());
-    // defer$(() -> allocator.deallocateObject(replacements));
-
-    for (final Map.Entry<String, String> entry : replacementsMap.entrySet()) {
-      replacements.add(
-          Pair.of(
-              entry.getKey().getBytes(StandardCharsets.UTF_8),
-              entry.getValue().getBytes(StandardCharsets.UTF_8)));
-      replacements.add(
-          Pair.of(
-              ("/META-INF/services/" + entry.getKey()).getBytes(StandardCharsets.UTF_8),
-              ("/META-INF/services/" + entry.getValue()).getBytes(StandardCharsets.UTF_8)));
-      replacements.add(
-          Pair.of(
-              ("META-INF/services/" + entry.getKey()).getBytes(StandardCharsets.UTF_8),
-              ("META-INF/services/" + entry.getValue()).getBytes(StandardCharsets.UTF_8)));
-      replacements.add(
-          Pair.of(
-              ("/WEB-INF/classes/META-INF/services/" + entry.getKey())
-                  .getBytes(StandardCharsets.UTF_8),
-              ("/WEB-INF/classes/META-INF/services/" + entry.getValue())
-                  .getBytes(StandardCharsets.UTF_8)));
-      replacements.add(
-          Pair.of(
-              ("WEB-INF/classes/META-INF/services/" + entry.getKey())
-                  .getBytes(StandardCharsets.UTF_8),
-              ("WEB-INF/classes/META-INF/services/" + entry.getValue())
-                  .getBytes(StandardCharsets.UTF_8)));
-      replacements.add(
-          Pair.of(
-              entry.getKey().replace('.', '/').getBytes(StandardCharsets.UTF_8),
-              entry.getValue().replace('.', '/').getBytes(StandardCharsets.UTF_8)));
-      replacements.add(
-          Pair.of(
-              ("/" + entry.getKey().replace('.', '/')).getBytes(StandardCharsets.UTF_8),
-              ("/" + entry.getValue().replace('.', '/')).getBytes(StandardCharsets.UTF_8)));
-      replacements.add(
-          Pair.of(
-              ("/WEB-INF/classes/" + entry.getKey().replace('.', '/'))
-                  .getBytes(StandardCharsets.UTF_8),
-              ("/WEB-INF/classes/" + entry.getValue().replace('.', '/'))
-                  .getBytes(StandardCharsets.UTF_8)));
-      replacements.add(
-          Pair.of(
-              ("WEB-INF/classes/" + entry.getKey().replace('.', '/'))
-                  .getBytes(StandardCharsets.UTF_8),
-              ("WEB-INF/classes/" + entry.getValue().replace('.', '/'))
-                  .getBytes(StandardCharsets.UTF_8)));
-    }
-
-    final ByteParser parser = allocator.allocateObject(ByteParser::new);
-    ByteParser.reset(parser, classFileBefore);
+    final ByteParser parser = objectPool.byteParser;
+    ByteParser.reset(objectPool.byteParser, classFileBefore);
+    Replacements.reset(objectPool.replacements, replacementsMap);
 
     if (!ByteParser.consumeOptional(parser, 0xCAFEBABE)) {
       final StringBuilder errorMessage =
-          allocator
-              .allocateStringBuilder(DEFAULT_STRING_BUILDER_SIZE)
+          ObjectPool.errorMessageBuilder(objectPool)
               .append("Failed to parse ")
               .append(fileName)
               .append(" at offset ")
@@ -117,15 +210,16 @@ public final class Namespacer {
 
     parser.currentIndex += 4; // Skip major and minor versions.
     // TODO add strict and non-strict options for versioning
-    final LongRef constant_pool_count_ref = ByteParser.consumeOptionalUnsignedBytes(parser, 2);
+    final LongRef constant_pool_count_ref =
+        ByteParser.consumeOptionalUnsignedBytes(parser, 2, objectPool.u8Ref);
 
     if (constant_pool_count_ref == null) {
-      return allocateTruncatedClassFileErrorMessage(allocator, parser, "constant_pool_count");
+      return allocateTruncatedClassFileErrorMessage(objectPool, parser, "constant_pool_count");
     }
 
     final int constant_pool_count = ((int) constant_pool_count_ref.value) - 1;
     GrowableByteArray.copyBytes(classFileBefore, 0, classFileAfter, 0, parser.currentIndex);
-    Utf8ConstantInfo utf8ConstantInfo = null;
+    Utf8ConstantInfo utf8ConstantInfo = objectPool.utf8ConstantInfo;
 
     for (int i = 0; i < constant_pool_count; i++) {
 
@@ -135,10 +229,11 @@ public final class Namespacer {
 
       final int constantStartIndex = parser.currentIndex;
 
-      final LongRef cp_info_tag_ref = ByteParser.consumeOptionalUnsignedBytes(parser, 1);
+      final LongRef cp_info_tag_ref =
+          ByteParser.consumeOptionalUnsignedBytes(parser, 1, objectPool.u8Ref);
 
       if (cp_info_tag_ref == null) {
-        return allocateTruncatedClassFileErrorMessage(allocator, parser, "cp_info_tag");
+        return allocateTruncatedClassFileErrorMessage(objectPool, parser, "cp_info_tag");
       }
 
       final short cp_info_tag = (short) cp_info_tag_ref.value;
@@ -151,11 +246,10 @@ public final class Namespacer {
         tag = ConstantPoolTag.VALUES[cp_info_tag];
       }
 
-      final int length = consumeCpInfoLength(parser, tag, cp_info_tag);
+      final int length = consumeCpInfoLength(parser, tag, objectPool.u8Ref);
 
       if (length < 0) {
-        return allocator
-            .allocateStringBuilder(DEFAULT_STRING_BUILDER_SIZE)
+        return ObjectPool.errorMessageBuilder(objectPool)
             .append("Invalid class file for ")
             .append(fileName)
             .append(". Unexpected constant tag of ")
@@ -172,8 +266,7 @@ public final class Namespacer {
         parser.currentIndex += length;
 
         if (parser.currentIndex >= GrowableByteArray.size(parser.bytes)) {
-          return allocator
-              .allocateStringBuilder(DEFAULT_STRING_BUILDER_SIZE)
+          return ObjectPool.errorMessageBuilder(objectPool)
               .append("Invalid class file for ")
               .append(fileName)
               .append(". No data left in constant pool at ")
@@ -185,10 +278,6 @@ public final class Namespacer {
             classFileBefore, constantStartIndex, classFileAfter, length + 1);
 
         continue;
-      }
-
-      if (utf8ConstantInfo == null) {
-        utf8ConstantInfo = allocator.allocateObject(Utf8ConstantInfo::new);
       }
 
       Utf8ConstantInfo.initialize(
@@ -204,8 +293,7 @@ public final class Namespacer {
 
       if (GrowableByteArray.size(classFileBefore) <= parser.maxIndexExclusive) {
         // TODO return allocateTruncatedClassFileErrorMessage(allocator, parser, "cp_info_tag");
-        return allocator
-            .allocateStringBuilder(DEFAULT_STRING_BUILDER_SIZE)
+        return ObjectPool.errorMessageBuilder(objectPool)
             .append("Invalid class file for ")
             .append(fileName)
             .append(". ")
@@ -223,7 +311,12 @@ public final class Namespacer {
 
       final String error =
           namespaceUtf8ConstantString(
-              allocator, fileName, parser, utf8ConstantInfo, replacements, classFileAfter);
+              objectPool,
+              fileName,
+              parser,
+              utf8ConstantInfo,
+              objectPool.replacements,
+              classFileAfter);
 
       parser.maxIndexExclusive = GrowableByteArray.size(parser.bytes);
 
@@ -233,8 +326,7 @@ public final class Namespacer {
     }
 
     if (size(parser.bytes) <= parser.currentIndex) {
-      return allocator
-          .allocateStringBuilder(DEFAULT_STRING_BUILDER_SIZE)
+      return ObjectPool.errorMessageBuilder(objectPool)
           .append("Invalid class file for ")
           .append(fileName)
           .append(". No data after constant pool at ")
@@ -252,10 +344,9 @@ public final class Namespacer {
   }
 
   private static String allocateTruncatedClassFileErrorMessage(
-      final Allocator allocator, final ByteParser parser, final String missingValue) {
+      final ObjectPool objectPool, final ByteParser parser, final String missingValue) {
     // TODO add constant pool index and byte index of current constant that we're working on
-    return allocator
-        .allocateStringBuilder(DEFAULT_STRING_BUILDER_SIZE)
+    return ObjectPool.errorMessageBuilder(objectPool)
         .append("Class file missing ")
         .append(missingValue)
         .append(" truncated at: ")
@@ -278,7 +369,7 @@ public final class Namespacer {
     @SuppressWarnings("unused")
     private String valueBeforeForDebugging;
 
-    private Utf8ConstantInfo(final Allocator allocator) {}
+    private Utf8ConstantInfo() {}
 
     private static void initialize(
         final Utf8ConstantInfo constant,
@@ -320,11 +411,11 @@ public final class Namespacer {
   }
 
   private static String namespaceUtf8ConstantString(
-      final Allocator allocator,
+      final ObjectPool objectPool,
       final String fileName,
       final ByteParser parser,
       final Utf8ConstantInfo constant,
-      final List<Pair<byte[], byte[]>> replacements,
+      final Replacements replacements,
       final GrowableByteArray classFileAfter) {
 
     if (constant.lengthBefore == 0) {
@@ -347,18 +438,18 @@ public final class Namespacer {
     if ('L' == currentChar || '[' == currentChar) {
       result =
           namespaceTypeSignature(
-              allocator, fileName, parser, constant, replacements, classFileAfter);
+              objectPool, fileName, parser, constant, replacements, classFileAfter);
     } else if ('(' == currentChar) {
       result =
           namespaceMethodSignature(
-              allocator, fileName, parser, constant, replacements, classFileAfter);
+              objectPool, fileName, parser, constant, replacements, classFileAfter);
     } else if ('<' == currentChar) {
       result =
           namespaceGenericSignature(
-              allocator, fileName, parser, constant, replacements, classFileAfter);
+              objectPool, fileName, parser, constant, replacements, classFileAfter);
     } else if ('/' == currentChar || Character.isAlphabetic(currentChar)) {
 
-      result = namespaceType(allocator, fileName, parser, constant, replacements, classFileAfter);
+      result = namespaceType(objectPool, fileName, parser, constant, replacements, classFileAfter);
 
       final int remainingBytes = parser.maxIndexExclusive - parser.currentIndex;
 
@@ -403,8 +494,7 @@ public final class Namespacer {
             - Utf8ConstantInfo.HEADER_BYTES;
 
     if (lengthAfter > U2_MAX_VALUE) {
-      return allocator
-          .allocateStringBuilder(DEFAULT_STRING_BUILDER_SIZE)
+      return ObjectPool.errorMessageBuilder(objectPool)
           .append("Invalid class file for ")
           .append(fileName)
           .append(". Constant String at index ")
@@ -425,11 +515,11 @@ public final class Namespacer {
   }
 
   private static String namespaceTypeSignature(
-      final Allocator allocator,
+      final ObjectPool objectPool,
       final String fileName,
       final ByteParser parser,
       final Utf8ConstantInfo constant,
-      final List<Pair<byte[], byte[]>> replacements,
+      final Replacements replacements,
       final GrowableByteArray classFileAfter) {
 
     while (ByteParser.consumeOptional(parser, '[')) {
@@ -482,7 +572,7 @@ public final class Namespacer {
     }
 
     String result =
-        namespaceType(allocator, fileName, parser, constant, replacements, classFileAfter);
+        namespaceType(objectPool, fileName, parser, constant, replacements, classFileAfter);
 
     if (result == NOT_SIGNATURE) {
       return NOT_SIGNATURE;
@@ -495,7 +585,7 @@ public final class Namespacer {
     if (ByteParser.currentMatches(parser, '<')) {
       result =
           namespaceGenericClassSignature(
-              allocator, fileName, parser, constant, replacements, classFileAfter);
+              objectPool, fileName, parser, constant, replacements, classFileAfter);
 
       if (result == NOT_SIGNATURE) {
         return NOT_SIGNATURE;
@@ -512,12 +602,12 @@ public final class Namespacer {
 
       result =
           namespaceType(
-              allocator,
+              objectPool,
               fileName,
               parser,
               constant,
               // TODO handle namespacing nested types.
-              Collections.emptyList(),
+              Replacements.EMPTY,
               classFileAfter);
 
       if (result == NOT_SIGNATURE) {
@@ -526,7 +616,7 @@ public final class Namespacer {
 
       result =
           namespaceGenericClassSignature(
-              allocator, fileName, parser, constant, replacements, classFileAfter);
+              objectPool, fileName, parser, constant, replacements, classFileAfter);
 
       if (result == NOT_SIGNATURE) {
         return NOT_SIGNATURE;
@@ -546,33 +636,35 @@ public final class Namespacer {
   }
 
   private static String namespaceType(
-      final Allocator allocator,
+      final ObjectPool objectPool,
       final String fileName,
       final ByteParser parser,
       final Utf8ConstantInfo constant,
-      final List<Pair<byte[], byte[]>> replacements,
+      final Replacements replacements,
       final GrowableByteArray classFileAfter) {
 
     int remainingLength = parser.maxIndexExclusive - parser.currentIndex;
 
     replacing:
-    for (final Pair<byte[], byte[]> replacement : replacements) {
+    for (int i = 0; i < replacements.length; i++) {
 
-      if (replacement.left().length > remainingLength) {
+      final byte[] before = replacements.before[i];
+
+      if (before.length > remainingLength) {
         continue;
       }
 
-      for (int i = 0; i < replacement.left().length; i++) {
-        if (replacement.left()[i] != GrowableByteArray.get(parser.bytes, parser.currentIndex + i)) {
+      for (int j = 0; j < before.length; j++) {
+        if (before[j] != GrowableByteArray.get(parser.bytes, parser.currentIndex + j)) {
           continue replacing;
         }
       }
 
-      remainingLength -= replacement.left().length;
-      parser.currentIndex += replacement.left().length;
+      remainingLength -= before.length;
+      parser.currentIndex += before.length;
 
       GrowableByteArray.appendBytes(
-          replacement.right(), 0, classFileAfter, replacement.right().length);
+          replacements.after[i], 0, classFileAfter, replacements.after[i].length);
       break;
     }
 
@@ -595,8 +687,7 @@ public final class Namespacer {
       if (size > remainingLength) {
         //        TODO return allocateTruncatedClassFileErrorMessage(allocator,
         // constant.startIndexBefore)
-        return allocator
-            .allocateStringBuilder(DEFAULT_STRING_BUILDER_SIZE)
+        return ObjectPool.errorMessageBuilder(objectPool)
             .append("Invalid class file for ")
             .append(fileName)
             .append(". Expected multibyte UTF-8 character of size ")
@@ -612,7 +703,8 @@ public final class Namespacer {
       }
 
       if (size > 1) {
-        final LongRef unicode = ByteParser.consumeOptionalUnsignedBytes(parser, size);
+        final LongRef unicode =
+            ByteParser.consumeOptionalUnsignedBytes(parser, size, objectPool.u8Ref);
 
         if (unicode == null) {
           return NOT_SIGNATURE;
@@ -639,11 +731,11 @@ public final class Namespacer {
   }
 
   private static String namespaceMethodSignature(
-      final Allocator allocator,
+      final ObjectPool objectPool,
       final String fileName,
       final ByteParser parser,
       final Utf8ConstantInfo constant,
-      final List<Pair<byte[], byte[]>> replacements,
+      final Replacements replacements,
       final GrowableByteArray classFileAfter) {
 
     if (!ByteParser.consumeOptional(parser, '(')) {
@@ -670,7 +762,7 @@ public final class Namespacer {
         default:
           final String result =
               namespaceTypeSignature(
-                  allocator, fileName, parser, constant, replacements, classFileAfter);
+                  objectPool, fileName, parser, constant, replacements, classFileAfter);
 
           if (result != null) {
             return result;
@@ -690,7 +782,7 @@ public final class Namespacer {
 
       final String result =
           namespaceTypeSignature(
-              allocator, fileName, parser, constant, replacements, classFileAfter);
+              objectPool, fileName, parser, constant, replacements, classFileAfter);
 
       if (result != null) {
         return result;
@@ -701,11 +793,11 @@ public final class Namespacer {
   }
 
   private static String namespaceGenericClassSignature(
-      final Allocator allocator,
+      final ObjectPool objectPool,
       final String fileName,
       final ByteParser parser,
       final Utf8ConstantInfo constant,
-      final List<Pair<byte[], byte[]>> replacements,
+      final Replacements replacements,
       final GrowableByteArray classFileAfter) {
 
     if (!ByteParser.consumeOptional(parser, '<')) {
@@ -745,7 +837,7 @@ public final class Namespacer {
           // fallthrough;
           final String result =
               namespaceTypeSignature(
-                  allocator, fileName, parser, constant, replacements, classFileAfter);
+                  objectPool, fileName, parser, constant, replacements, classFileAfter);
 
           if (result != null) {
             return result;
@@ -773,11 +865,11 @@ public final class Namespacer {
   }
 
   private static String namespaceGenericSignature(
-      final Allocator allocator,
+      final ObjectPool objectPool,
       final String fileName,
       final ByteParser parser,
       final Utf8ConstantInfo constant,
-      final List<Pair<byte[], byte[]>> replacements,
+      final Replacements replacements,
       final GrowableByteArray classFileAfter) {
 
     if (!ByteParser.consumeOptional(parser, '<')) {
@@ -808,7 +900,7 @@ public final class Namespacer {
 
       final String result =
           namespaceTypeSignature(
-              allocator, fileName, parser, constant, replacements, classFileAfter);
+              objectPool, fileName, parser, constant, replacements, classFileAfter);
 
       if (result != null) {
         return result;
@@ -836,12 +928,12 @@ public final class Namespacer {
       case '(':
         result =
             namespaceMethodSignature(
-                allocator, fileName, parser, constant, replacements, classFileAfter);
+                objectPool, fileName, parser, constant, replacements, classFileAfter);
         break;
       case 'L':
         result =
             namespaceTypeSignature(
-                allocator, fileName, parser, constant, replacements, classFileAfter);
+                objectPool, fileName, parser, constant, replacements, classFileAfter);
         break;
       default:
         result = NOT_SIGNATURE;
@@ -851,12 +943,13 @@ public final class Namespacer {
   }
 
   private static int consumeCpInfoLength(
-      final ByteParser parser, final ConstantPoolTag tag, short cp_info_tag) {
+      final ByteParser parser, final ConstantPoolTag tag, final LongRef u8LongRef) {
 
     switch (tag) {
       case CONSTANT_Utf8:
         final LongRef length =
-            ByteParser.consumeOptionalUnsignedBytes(parser, Utf8ConstantInfo.LENGTH_BYTES);
+            ByteParser.consumeOptionalUnsignedBytes(
+                parser, Utf8ConstantInfo.LENGTH_BYTES, u8LongRef);
 
         if (length == null) {
           return -1;
@@ -931,16 +1024,13 @@ public final class Namespacer {
     CONSTANT_Module,
     CONSTANT_Package;
 
-    private final byte ordinal;
-
     ConstantPoolTag() {
-      final int ordinal = ordinal();
       if (ASSERT_ENABLED) {
+        final int ordinal = ordinal();
         Assert.assertFalse(
             ordinal < Byte.MIN_VALUE || Byte.MAX_VALUE < ordinal,
             () -> "ConstantPoolTag must fit into a byte.");
       }
-      this.ordinal = (byte) ordinal;
     }
 
     private static final ConstantPoolTag[] VALUES = ConstantPoolTag.values();
@@ -1025,14 +1115,11 @@ public final class Namespacer {
   }
 
   private static final class ByteParser {
-    private Allocator allocator;
     private GrowableByteArray bytes;
     private int currentIndex;
     private int maxIndexExclusive;
 
-    private ByteParser(final Allocator allocator) {
-      this.allocator = allocator;
-    }
+    private ByteParser() {}
 
     private static void reset(final ByteParser parser, final GrowableByteArray bytes) {
       parser.bytes = assertNotNull(bytes);
@@ -1090,7 +1177,7 @@ public final class Namespacer {
     }
 
     private static LongRef consumeOptionalUnsignedBytes(
-        final ByteParser parser, final int sizeInBytes) {
+        final ByteParser parser, final int sizeInBytes, final LongRef u8ResultRef) {
 
       assertTrue(
           0 < sizeInBytes && sizeInBytes < 8,
@@ -1111,9 +1198,8 @@ public final class Namespacer {
                     << (i * Byte.SIZE)));
       }
 
-      final LongRef u8Ref = parser.allocator.allocateLongRef();
-      u8Ref.value = u8;
-      return u8Ref;
+      u8ResultRef.value = u8;
+      return u8ResultRef;
     }
 
     private static int consumeUntil(final ByteParser parser, final char expected) {
