@@ -1,10 +1,18 @@
 package dev.stiemannkj1.collection.arrays;
 
-import static dev.stiemannkj1.util.Assert.*;
+import static dev.stiemannkj1.util.Assert.ASSERT_ENABLED;
+import static dev.stiemannkj1.util.Assert.assertAsciiPrintable;
+import static dev.stiemannkj1.util.Assert.assertFalse;
+import static dev.stiemannkj1.util.Assert.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
 
+// TODO make GrowableByteArray top level and use ByteBuffer as the backing object rather than an
+// array so we can take advantage of native memory.
+// TODO build slices on top of GrowableByteArray
+// TODO build UTF-8 strings on top of GrowableByteArray
+// TODO build arena allocator (and possibly others) instead of GrowableByteArray
 public final class GrowableArrays {
 
   public static final class GrowableByteArray {
@@ -41,18 +49,17 @@ public final class GrowableArrays {
       return array.bytes[index];
     }
 
-    public static boolean growIfNecessary(final GrowableByteArray array, final int newSize) {
+    public static void growIfNecessary(final GrowableByteArray array, final int newSize) {
 
       checkMaxValue(newSize);
 
       if (newSize <= array.bytes.length) {
-        return false;
+        return;
       }
 
       final byte[] oldArray = array.bytes;
       array.bytes = new byte[newSize];
       System.arraycopy(oldArray, 0, array.bytes, 0, oldArray.length);
-      return true;
     }
 
     public static void append(final GrowableByteArray array, final char ascii) {

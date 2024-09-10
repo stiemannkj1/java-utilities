@@ -1,179 +1,130 @@
 package dev.stiemannkj1.bytecode;
 
 import static dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray.size;
-import static dev.stiemannkj1.util.Assert.*;
+import static dev.stiemannkj1.util.Assert.ASSERT_ENABLED;
+import static dev.stiemannkj1.util.Assert.assertAsciiPrintable;
+import static dev.stiemannkj1.util.Assert.assertNotNegative;
+import static dev.stiemannkj1.util.Assert.assertNotNull;
+import static dev.stiemannkj1.util.Assert.assertTrue;
+import static dev.stiemannkj1.util.Hex.appendHexString;
 
 import dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray;
 import dev.stiemannkj1.util.Assert;
 import dev.stiemannkj1.util.References.LongRef;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
 
 public final class Namespacer {
 
   private static final int DEFAULT_STRING_BUILDER_SIZE = 256;
-  private static final int CONSTANT_UTF8_INFO_HEADER_SIZE = 3;
   private static final int U2_MAX_VALUE = (1 << 16) - 1;
-  private static final int BITS_24 = 24;
-  private static final int BITS_16 = 16;
-  private static final int BITS_8 = 8;
   private static final String NOT_SIGNATURE = Namespacer.class.getTypeName() + ".NOT_SIGNATURE";
 
-  private static final byte[] CLASS_FILE_SUFFIX = ".class".getBytes(StandardCharsets.UTF_8);
-  // TODO always skip these and other standard class file strings
-  private static final byte[] LOCAL_VARIABLE_TABLE =
-      "LocalVariableTable".getBytes(StandardCharsets.UTF_8);
-  private static final byte[] LINE_NUMBER_TABLE =
-      "LineNumberTable".getBytes(StandardCharsets.UTF_8);
-  private static final byte[] Lookup = "Lookup".getBytes(StandardCharsets.UTF_8);
-  private static final byte[] InnerClasses = "InnerClasses".getBytes(StandardCharsets.UTF_8);
-  private static final byte[] NestMembers = "NestMembers".getBytes(StandardCharsets.UTF_8);
-  private static final byte[] SourceFile = "SourceFile".getBytes(StandardCharsets.UTF_8);
-  private static final byte[] Exceptions = "Exceptions".getBytes(StandardCharsets.UTF_8);
-  private static final byte[] StackMapTable = "StackMapTable".getBytes(StandardCharsets.UTF_8);
-  private static final byte[] RuntimeVisibleAnnotations =
-      "RuntimeVisibleAnnotations".getBytes(StandardCharsets.UTF_8);
-  private static final byte[] Code = "Code".getBytes(StandardCharsets.UTF_8);
-  private static final byte[] Init = "<init>".getBytes(StandardCharsets.UTF_8);
-  private static final byte[] Clinit = "<clinit>".getBytes(StandardCharsets.UTF_8);
+  // TODO generate tables and byte arrays at compile time.
+  /**
+   * Lookup table to determine if an ASCII character is a valid Java ClassTypeSignature as described
+   * in the JVM spec section 4.7.9.1 Signatures
+   * (https://docs.oracle.com/javase/specs/jvms/se22/html/jvms-4.html#jvms-ClassTypeSignature).
+   *
+   * <p>NOTE: this table also allows '$' (which is not allowed in the spec) so that code can be
+   * reused for class names, file names, internal class names, and class type signatures. The
+   * namespacer avoids strictly validating strings and signatures for the sake of performance.
+   */
+  private static final boolean[] ASCII_CLASS_TYPE_SIGNATURE_CHARS;
 
-  private static final class Replacements {
+  private static final byte[][] NOT_TYPE;
+  private static final byte[][] STANDARD_CONSTANTS;
+  private static final byte[][] NOT_GENERIC;
 
-    private static final Replacements EMPTY = new Replacements();
+  static {
+    ASCII_CLASS_TYPE_SIGNATURE_CHARS = new boolean[128];
 
-    static {
-      reset(EMPTY, Collections.emptyMap());
+    for (int i = 0; i < ASCII_CLASS_TYPE_SIGNATURE_CHARS.length; i++) {
+      ASCII_CLASS_TYPE_SIGNATURE_CHARS[i] =
+          '$' == i
+              || ('.' <= i && i <= '9')
+              || ('A' <= i && i <= 'Z')
+              || ('a' <= i && i <= 'z')
+              || '_' == i;
     }
 
-    private Map<String, String> replacementsMap;
-    private byte[][] before;
-    private byte[][] after;
-    private int length;
+    final String[] standardConstants =
+        new String[] {
+          "ConstantValue",
+          "Code",
+          "StackMapTable",
+          "Exceptions",
+          "InnerClasses",
+          "EnclosingMethod",
+          "Synthetic",
+          "Signature",
+          "SourceFile",
+          "SourceDebugExtension",
+          "LineNumberTable",
+          "LocalVariableTable",
+          "LocalVariableTypeTable",
+          "Deprecated",
+          "RuntimeVisibleAnnotations",
+          "RuntimeInvisibleAnnotations",
+          "RuntimeVisibleParameterAnnotations",
+          "RuntimeInvisibleParameterAnnotations",
+          "RuntimeVisibleTypeAnnotations",
+          "RuntimeInvisibleTypeAnnotations",
+          "AnnotationDefault",
+          "BootstrapMethods",
+          "MethodParameters",
+          "Module",
+          "ModulePackages",
+          "ModuleMainClass",
+          "NestHost",
+          "NestMembers",
+          "Record",
+          "PermittedSubclasses"
+        };
+    STANDARD_CONSTANTS = new byte[standardConstants.length][];
+    NOT_TYPE = new byte[3][];
+    int notTypeIndex = 0;
 
-    private static void reset(
-        final Replacements replacements, final Map<String, String> replacementsMap) {
+    for (int i = 0; i < standardConstants.length; i++) {
 
-      if (replacements.replacementsMap != Objects.requireNonNull(replacementsMap)) {
+      STANDARD_CONSTANTS[i] = standardConstants[i].getBytes(StandardCharsets.UTF_8);
 
-        replacements.replacementsMap = replacementsMap;
-
-        final int replacementsSize = replacementsMap.size() * 16;
-
-        if (replacements.before == null || replacementsSize > replacements.before.length) {
-          replacements.before = new byte[replacementsSize][];
-          replacements.after = new byte[replacementsSize][];
-        }
-
-        final Set<Map.Entry<String, String>> entries = replacementsMap.entrySet();
-
-        int i = 0;
-        for (final Map.Entry<String, String> entry : entries) {
-
-          replacements.before[i] = entry.getKey().getBytes(StandardCharsets.UTF_8);
-          final byte[] beforeWithPeriods = replacements.before[i];
-          replacements.after[i] = entry.getValue().getBytes(StandardCharsets.UTF_8);
-          final byte[] afterWithPeriods = replacements.after[i];
-
-          i++;
-
-          final String metaInfServices = "META-INF/services/";
-          replacements.before[i] = prependAscii(metaInfServices, beforeWithPeriods);
-          replacements.after[i] = prependAscii(metaInfServices, afterWithPeriods);
-
-          i++;
-
-          final String metaInfServicesAbsolute = "/META-INF/services/";
-          replacements.before[i] = prependAscii(metaInfServicesAbsolute, beforeWithPeriods);
-          replacements.after[i] = prependAscii(metaInfServicesAbsolute, afterWithPeriods);
-
-          i++;
-
-          final String webInfServices = "WEB-INF/classes/META-INF/services/";
-          replacements.before[i] = prependAscii(webInfServices, beforeWithPeriods);
-          replacements.after[i] = prependAscii(webInfServices, afterWithPeriods);
-
-          i++;
-
-          final String webInfServicesAbsolute = "/WEB-INF/classes/META-INF/services/";
-          replacements.before[i] = prependAscii(webInfServicesAbsolute, beforeWithPeriods);
-          replacements.after[i] = prependAscii(webInfServicesAbsolute, afterWithPeriods);
-
-          i++;
-
-          replacements.before[i] =
-              toInternalName(Arrays.copyOf(beforeWithPeriods, beforeWithPeriods.length));
-          final byte[] beforeWithSlashes = replacements.before[i];
-          replacements.after[i] =
-              toInternalName(Arrays.copyOf(afterWithPeriods, afterWithPeriods.length));
-          final byte[] afterWithSlashes = replacements.after[i];
-
-          i++;
-
-          replacements.before[i] = prependAscii("/", beforeWithSlashes);
-          replacements.after[i] = prependAscii("/", afterWithSlashes);
-
-          i++;
-
-          replacements.before[i] = prependAscii("WEB-INF/classes/", beforeWithSlashes);
-          replacements.after[i] = prependAscii("WEB-INF/classes/", afterWithSlashes);
-
-          i++;
-
-          replacements.before[i] = prependAscii("/WEB-INF/classes/", beforeWithSlashes);
-          replacements.after[i] = prependAscii("/WEB-INF/classes/", afterWithSlashes);
-
-          i++;
-        }
-
-        replacements.length = i;
+      if ('L' == STANDARD_CONSTANTS[i][0]) {
+        NOT_TYPE[notTypeIndex++] = STANDARD_CONSTANTS[i];
       }
     }
 
-    private static byte[] toInternalName(final byte[] utf8) {
-
-      for (int i = 0; i < utf8.length; i++) {
-
-        if (utf8[i] == '.') {
-          utf8[i] = '/';
-        }
+    if (ASSERT_ENABLED) {
+      for (int i = 0; i < NOT_TYPE.length; i++) {
+        final int i_ = i;
+        assertTrue(
+            'L' == assertNotNull(NOT_TYPE[i])[0],
+            () ->
+                "NOT_TYPE values must start with 'L', but found \""
+                    + new String(NOT_TYPE[i_], StandardCharsets.UTF_8)
+                    + ".");
       }
-
-      return utf8;
     }
 
-    private static byte[] prependAscii(final String string, final byte[] utf8) {
+    final String[] notGeneric = new String[] {"<init>", "<clinit>"};
+    NOT_GENERIC = new byte[notGeneric.length][];
 
-      final byte[] prependedUtf8 = new byte[string.length() + utf8.length];
-
-      for (int i = 0; i < string.length(); i++) {
-
-        final char current = string.charAt(i);
-
-        if (ASSERT_ENABLED) {
-          assertAsciiPrintable(current);
-          final int i_ = i;
-          assertTrue(
-              i < prependedUtf8.length,
-              () ->
-                  i_
-                      + " out of bounds for \""
-                      + new String(prependedUtf8, StandardCharsets.UTF_8)
-                      + "\" with length: "
-                      + prependedUtf8.length);
-        }
-
-        prependedUtf8[i] = (byte) current;
-      }
-
-      System.arraycopy(utf8, 0, prependedUtf8, string.length(), utf8.length);
-      return prependedUtf8;
+    for (int i = 0; i < notGeneric.length; i++) {
+      NOT_GENERIC[i] = notGeneric[i].getBytes(StandardCharsets.UTF_8);
     }
   }
 
   public static final class ObjectPool {
+
+    private static final short MAX_CLASS_FILE_MAJOR_VERSION = /* Java 22 */ 66;
+
+    private long maxClassFileMajorVersion = MAX_CLASS_FILE_MAJOR_VERSION;
     private Replacements replacements = new Replacements();
     private ByteParser byteParser = new ByteParser();
-    private LongRef u8Ref = new LongRef();
+    private LongRef i8Ref = new LongRef();
     private Utf8ConstantInfo utf8ConstantInfo = new Utf8ConstantInfo();
     private StringBuilder errorMessageBuilder = new StringBuilder(DEFAULT_STRING_BUILDER_SIZE);
 
@@ -181,7 +132,29 @@ public final class Namespacer {
       return objectPool.errorMessageBuilder;
     }
 
-    public ObjectPool() {}
+    /**
+     * Provide an object pool with a customizable maximum supported class file major version. Using
+     * this method allows the caller to use {@link Namespacer} with versions of the Java class file
+     * that were not released before the namespacer was written.
+     *
+     * <p><strong>NOTE:</strong> when you specify a higher version, you must verify that class file
+     * version does not modify Java class or method signature specifications since {@link
+     * ObjectPool#MAX_CLASS_FILE_MAJOR_VERSION}. If the specification has changed, the namespacer
+     * may generate invalid class files causing crashes or bugs. See: <a
+     * href="https://docs.oracle.com/javase/specs/jvms/se22/html/jvms-4.html#jvms-4.7.9.1">JVM Spec
+     * Section 4.7.9.1 Signatures</a>.
+     *
+     * @param maxClassFileMajorVersion the maximum class file to support.
+     * @return {@link Namespacer.ObjectPool} with the specified max class file version;
+     */
+    public static ObjectPool withMaxClassFileVersion(final short maxClassFileMajorVersion) {
+
+      assertNotNegative(maxClassFileMajorVersion, "maxClassFileMajorVersion");
+
+      final ObjectPool objectPool = new ObjectPool();
+      objectPool.maxClassFileMajorVersion = maxClassFileMajorVersion;
+      return objectPool;
+    }
   }
 
   public static String namespace(
@@ -202,19 +175,53 @@ public final class Namespacer {
               .append(fileName)
               .append(" at offset ")
               .append(parser.currentIndex)
-              .append(". Expecting 0x");
-      appendHexString(errorMessage, 0xCAFEBABE).append(" but found 0x");
-      appendHexString(errorMessage, parser.bytes, 0, Integer.BYTES);
+              .append(". Expecting ");
+      appendHexString(errorMessage, 0xCAFEBABE);
+
+      final LongRef actualMagicBytes =
+          ByteParser.consumeOptionalUnsignedBytes(parser, Integer.BYTES, objectPool.i8Ref);
+
+      if (actualMagicBytes != null) {
+        errorMessage.append(" but found ");
+        appendHexString(errorMessage, (int) actualMagicBytes.value);
+        errorMessage.append(".");
+      } else {
+        errorMessage
+            .append(" but class file was truncated at ")
+            .append(GrowableByteArray.size(classFileBefore));
+      }
+
       return errorMessage.toString();
     }
 
-    parser.currentIndex += 4; // Skip major and minor versions.
-    // TODO add strict and non-strict options for versioning
+    // Skip minor version.
+    parser.currentIndex += 2;
+    final LongRef majorVersion =
+        ByteParser.consumeOptionalUnsignedBytes(parser, 2, objectPool.i8Ref);
+
+    if (majorVersion == null) {
+      return truncatedClassFileErrorMessage(objectPool, fileName, parser, "major_version");
+    }
+
+    if (objectPool.maxClassFileMajorVersion < majorVersion.value) {
+      return ObjectPool.errorMessageBuilder(objectPool)
+          .append(Namespacer.class.getTypeName())
+          .append(" does not support class file version ")
+          .append(majorVersion.value)
+          .append(" found in ")
+          .append(fileName)
+          .append(
+              ". If you wish to ignore this error, specify a custom max class file version higher than or equal to ")
+          .append(majorVersion.value)
+          .append(" for Namespacer.ObjectPool.")
+          .toString();
+    }
+
     final LongRef constant_pool_count_ref =
-        ByteParser.consumeOptionalUnsignedBytes(parser, 2, objectPool.u8Ref);
+        ByteParser.consumeOptionalUnsignedBytes(parser, 2, objectPool.i8Ref);
 
     if (constant_pool_count_ref == null) {
-      return allocateTruncatedClassFileErrorMessage(objectPool, parser, "constant_pool_count");
+      return truncatedClassFileErrorMessage(objectPool, fileName, parser, "constant_pool_count");
     }
 
     final int constant_pool_count = ((int) constant_pool_count_ref.value) - 1;
@@ -230,10 +237,10 @@ public final class Namespacer {
       final int constantStartIndex = parser.currentIndex;
 
       final LongRef cp_info_tag_ref =
-          ByteParser.consumeOptionalUnsignedBytes(parser, 1, objectPool.u8Ref);
+          ByteParser.consumeOptionalUnsignedBytes(parser, 1, objectPool.i8Ref);
 
       if (cp_info_tag_ref == null) {
-        return allocateTruncatedClassFileErrorMessage(objectPool, parser, "cp_info_tag");
+        return truncatedClassFileErrorMessage(objectPool, fileName, parser, "cp_info_tag");
       }
 
       final short cp_info_tag = (short) cp_info_tag_ref.value;
@@ -246,7 +253,7 @@ public final class Namespacer {
         tag = ConstantPoolTag.VALUES[cp_info_tag];
       }
 
-      final int length = consumeCpInfoLength(parser, tag, objectPool.u8Ref);
+      final int length = consumeCpInfoLength(parser, tag, objectPool.i8Ref);
 
       if (length < 0) {
         return ObjectPool.errorMessageBuilder(objectPool)
@@ -292,7 +299,6 @@ public final class Namespacer {
           utf8ConstantInfo.utf8StartIndexBefore + utf8ConstantInfo.utf8LengthBefore;
 
       if (GrowableByteArray.size(classFileBefore) <= parser.maxIndexExclusive) {
-        // TODO return allocateTruncatedClassFileErrorMessage(allocator, parser, "cp_info_tag");
         return ObjectPool.errorMessageBuilder(objectPool)
             .append("Invalid class file for ")
             .append(fileName)
@@ -343,11 +349,15 @@ public final class Namespacer {
     return null;
   }
 
-  private static String allocateTruncatedClassFileErrorMessage(
-      final ObjectPool objectPool, final ByteParser parser, final String missingValue) {
-    // TODO add constant pool index and byte index of current constant that we're working on
+  private static String truncatedClassFileErrorMessage(
+      final ObjectPool objectPool,
+      final String fileName,
+      final ByteParser parser,
+      final String missingValue) {
     return ObjectPool.errorMessageBuilder(objectPool)
-        .append("Class file missing ")
+        .append("Class file ")
+        .append(fileName)
+        .append(" missing ")
         .append(missingValue)
         .append(" truncated at: ")
         .append(parser.currentIndex)
@@ -410,6 +420,33 @@ public final class Namespacer {
     }
   }
 
+  private static boolean matchesStandardConstant(
+      final GrowableByteArray classFile,
+      final Utf8ConstantInfo constant,
+      final byte[][] standardConstants) {
+
+    compareConstants:
+    for (byte[] standardConstant : standardConstants) {
+
+      if (standardConstant.length != constant.utf8LengthBefore) {
+        continue;
+      }
+
+      // TODO shim Arrays.compare/Arrays.equals with multi-release jar
+      for (int j = 0; j < standardConstant.length; j++) {
+
+        if (standardConstant[j]
+            != GrowableByteArray.get(classFile, constant.utf8StartIndexBefore + j)) {
+          continue compareConstants;
+        }
+      }
+
+      return true;
+    }
+
+    return false;
+  }
+
   private static String namespaceUtf8ConstantString(
       final ObjectPool objectPool,
       final String fileName,
@@ -435,42 +472,47 @@ public final class Namespacer {
     final byte currentChar = GrowableByteArray.get(parser.bytes, parser.currentIndex);
     String result;
 
-    if ('L' == currentChar || '[' == currentChar) {
-      result =
-          namespaceTypeSignature(
-              objectPool, fileName, parser, constant, replacements, classFileAfter);
+    final boolean possibleType = 'L' == currentChar;
+
+    if (possibleType || '[' == currentChar) {
+
+      if (possibleType && matchesStandardConstant(parser.bytes, constant, NOT_TYPE)) {
+        result = NOT_SIGNATURE;
+      } else {
+        result =
+            namespaceTypeSignature(
+                objectPool, fileName, parser, constant, replacements, classFileAfter);
+      }
+
     } else if ('(' == currentChar) {
       result =
           namespaceMethodSignature(
               objectPool, fileName, parser, constant, replacements, classFileAfter);
     } else if ('<' == currentChar) {
-      result =
-          namespaceGenericSignature(
-              objectPool, fileName, parser, constant, replacements, classFileAfter);
+
+      if (matchesStandardConstant(parser.bytes, constant, NOT_GENERIC)) {
+        result = NOT_SIGNATURE;
+      } else {
+        result =
+            namespaceGenericSignature(
+                objectPool, fileName, parser, constant, replacements, classFileAfter);
+      }
+
     } else if ('/' == currentChar || Character.isAlphabetic(currentChar)) {
 
-      result = namespaceType(objectPool, fileName, parser, constant, replacements, classFileAfter);
-
-      final int remainingBytes = parser.maxIndexExclusive - parser.currentIndex;
-
-      if (result == null && CLASS_FILE_SUFFIX.length == remainingBytes) {
-        // TODO shim Arrays.compare with multi-release jar
-        for (int i = 0; i < CLASS_FILE_SUFFIX.length; i++) {
-          if (ByteParser.currentMatches(parser, CLASS_FILE_SUFFIX[i])) {
-            continue;
-          }
-
-          result = NOT_SIGNATURE;
-          break;
-        }
-
-        if (result == null) {
-          GrowableByteArray.appendBytes(
-              CLASS_FILE_SUFFIX, 0, classFileAfter, CLASS_FILE_SUFFIX.length);
-          parser.currentIndex = parser.maxIndexExclusive;
-        }
-      } else if (remainingBytes > 0) {
+      if ('/' != currentChar
+          && matchesStandardConstant(parser.bytes, constant, STANDARD_CONSTANTS)) {
         result = NOT_SIGNATURE;
+      } else {
+
+        result =
+            namespaceType(objectPool, fileName, parser, constant, replacements, classFileAfter);
+
+        final int remainingBytes = parser.maxIndexExclusive - parser.currentIndex;
+
+        if (result == null && remainingBytes > 0) {
+          result = NOT_SIGNATURE;
+        }
       }
     } else {
       result = NOT_SIGNATURE;
@@ -574,10 +616,6 @@ public final class Namespacer {
     String result =
         namespaceType(objectPool, fileName, parser, constant, replacements, classFileAfter);
 
-    if (result == NOT_SIGNATURE) {
-      return NOT_SIGNATURE;
-    }
-
     if (result != null) {
       return result;
     }
@@ -586,10 +624,6 @@ public final class Namespacer {
       result =
           namespaceGenericClassSignature(
               objectPool, fileName, parser, constant, replacements, classFileAfter);
-
-      if (result == NOT_SIGNATURE) {
-        return NOT_SIGNATURE;
-      }
 
       if (result != null) {
         return result;
@@ -610,17 +644,13 @@ public final class Namespacer {
               Replacements.EMPTY,
               classFileAfter);
 
-      if (result == NOT_SIGNATURE) {
-        return NOT_SIGNATURE;
+      if (result != null) {
+        return result;
       }
 
       result =
           namespaceGenericClassSignature(
               objectPool, fileName, parser, constant, replacements, classFileAfter);
-
-      if (result == NOT_SIGNATURE) {
-        return NOT_SIGNATURE;
-      }
 
       if (result != null) {
         return result;
@@ -685,8 +715,6 @@ public final class Namespacer {
       }
 
       if (size > remainingLength) {
-        //        TODO return allocateTruncatedClassFileErrorMessage(allocator,
-        // constant.startIndexBefore)
         return ObjectPool.errorMessageBuilder(objectPool)
             .append("Invalid class file for ")
             .append(fileName)
@@ -704,7 +732,7 @@ public final class Namespacer {
 
       if (size > 1) {
         final LongRef unicode =
-            ByteParser.consumeOptionalUnsignedBytes(parser, size, objectPool.u8Ref);
+            ByteParser.consumeOptionalUnsignedBytes(parser, size, objectPool.i8Ref);
 
         if (unicode == null) {
           return NOT_SIGNATURE;
@@ -1036,81 +1064,137 @@ public final class Namespacer {
     private static final ConstantPoolTag[] VALUES = ConstantPoolTag.values();
   }
 
-  /**
-   * Lookup table to determine if an ASCII character is a valid Java ClassTypeSignature as described
-   * in the JVM spec section 4.7.9.1 Signatures
-   * (https://docs.oracle.com/javase/specs/jvms/se22/html/jvms-4.html#jvms-ClassTypeSignature).
-   *
-   * <p>NOTE: this table also allows '$' (which is not allowed in the spec) so that code can be
-   * reused for class names, file names, internal class names, and class type signatures. The
-   * namespacer avoids strictly validating strings and signatures for the sake of performance.
-   */
-  private static boolean[] ASCII_CLASS_TYPE_SIGNATURE_CHARS;
+  private static final class Replacements {
 
-  static {
-    ASCII_CLASS_TYPE_SIGNATURE_CHARS = new boolean[128];
+    private static final Replacements EMPTY = new Replacements();
 
-    for (int i = 0; i < ASCII_CLASS_TYPE_SIGNATURE_CHARS.length; i++) {
-      ASCII_CLASS_TYPE_SIGNATURE_CHARS[i] =
-          '$' == i
-              || ('.' <= i && i <= '9')
-              || ('A' <= i && i <= 'Z')
-              || ('a' <= i && i <= 'z')
-              || '_' == i;
-    }
-  }
-
-  private static StringBuilder appendHexString(final StringBuilder stringBuilder, final int i4) {
-
-    final int leadingZeros = Integer.numberOfLeadingZeros(i4);
-    final int leadingBytes = leadingZeros << Byte.SIZE;
-    stringBuilder.append(ZEROS[leadingBytes]);
-    final int trailingBytes = Integer.BYTES - leadingBytes;
-
-    for (int i = trailingBytes; i >= 0; i--) {
-      appendHexString(stringBuilder, (byte) ((i4 >> i) & 0xFF));
+    static {
+      reset(EMPTY, Collections.emptyMap());
     }
 
-    return stringBuilder;
-  }
+    private Map<String, String> replacementsMap;
+    private byte[][] before;
+    private byte[][] after;
+    private int length;
 
-  private static StringBuilder appendHexString(
-      final StringBuilder stringBuilder, final GrowableByteArray bytes, int offset, int size) {
+    private static void reset(
+        final Replacements replacements, final Map<String, String> replacementsMap) {
 
-    for (int i = offset; i < size; i++) {
-      appendHexString(stringBuilder, GrowableByteArray.get(bytes, i));
-    }
-
-    return stringBuilder;
-  }
-
-  // TODO this is broken
-  private static StringBuilder appendHexString(final StringBuilder stringBuilder, final byte i1) {
-    final int i4 = Byte.toUnsignedInt(i1);
-    return stringBuilder.append(BYTES_AS_HEX[i4]).append(BYTES_AS_HEX[i4 + 1]);
-  }
-
-  private static final char[] HEX_CHARS =
-      new char[] {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
-
-  private static final char[] BYTES_AS_HEX = new char[HEX_CHARS.length << 1];
-
-  static {
-    for (int i = 0; i < HEX_CHARS.length; i++) {
-      for (int j = 0; j < HEX_CHARS.length - 1; j++) {
-        BYTES_AS_HEX[i + j] = HEX_CHARS[j];
-        j++;
-        BYTES_AS_HEX[i + j] = HEX_CHARS[i];
+      if (replacements.replacementsMap == assertNotNull(replacementsMap)) {
+        return;
       }
+
+      replacements.replacementsMap = replacementsMap;
+
+      final int replacementsSize = replacementsMap.size() * 16;
+
+      if (replacements.before == null || replacementsSize > replacements.before.length) {
+        replacements.before = new byte[replacementsSize][];
+        replacements.after = new byte[replacementsSize][];
+      }
+
+      final Set<Map.Entry<String, String>> entries = replacementsMap.entrySet();
+
+      int i = 0;
+      for (final Map.Entry<String, String> entry : entries) {
+
+        replacements.before[i] = entry.getKey().getBytes(StandardCharsets.UTF_8);
+        final byte[] beforeWithPeriods = replacements.before[i];
+        replacements.after[i] = entry.getValue().getBytes(StandardCharsets.UTF_8);
+        final byte[] afterWithPeriods = replacements.after[i];
+
+        i++;
+
+        final String metaInfServices = "META-INF/services/";
+        replacements.before[i] = prependAscii(metaInfServices, beforeWithPeriods);
+        replacements.after[i] = prependAscii(metaInfServices, afterWithPeriods);
+
+        i++;
+
+        final String metaInfServicesAbsolute = "/META-INF/services/";
+        replacements.before[i] = prependAscii(metaInfServicesAbsolute, beforeWithPeriods);
+        replacements.after[i] = prependAscii(metaInfServicesAbsolute, afterWithPeriods);
+
+        i++;
+
+        final String webInfServices = "WEB-INF/classes/META-INF/services/";
+        replacements.before[i] = prependAscii(webInfServices, beforeWithPeriods);
+        replacements.after[i] = prependAscii(webInfServices, afterWithPeriods);
+
+        i++;
+
+        final String webInfServicesAbsolute = "/WEB-INF/classes/META-INF/services/";
+        replacements.before[i] = prependAscii(webInfServicesAbsolute, beforeWithPeriods);
+        replacements.after[i] = prependAscii(webInfServicesAbsolute, afterWithPeriods);
+
+        i++;
+
+        replacements.before[i] =
+            toInternalName(Arrays.copyOf(beforeWithPeriods, beforeWithPeriods.length));
+        final byte[] beforeWithSlashes = replacements.before[i];
+        replacements.after[i] =
+            toInternalName(Arrays.copyOf(afterWithPeriods, afterWithPeriods.length));
+        final byte[] afterWithSlashes = replacements.after[i];
+
+        i++;
+
+        replacements.before[i] = prependAscii("/", beforeWithSlashes);
+        replacements.after[i] = prependAscii("/", afterWithSlashes);
+
+        i++;
+
+        replacements.before[i] = prependAscii("WEB-INF/classes/", beforeWithSlashes);
+        replacements.after[i] = prependAscii("WEB-INF/classes/", afterWithSlashes);
+
+        i++;
+
+        replacements.before[i] = prependAscii("/WEB-INF/classes/", beforeWithSlashes);
+        replacements.after[i] = prependAscii("/WEB-INF/classes/", afterWithSlashes);
+
+        i++;
+      }
+
+      replacements.length = i;
     }
-  }
 
-  private static final String[] ZEROS = new String[Long.BYTES];
+    private static byte[] toInternalName(final byte[] utf8) {
 
-  static {
-    final StringBuilder stringBuilder = new StringBuilder(Long.BYTES * 2);
-    for (int i = 0; i < ZEROS.length; i++) {
-      ZEROS[i] = stringBuilder.append('0').append('0').toString();
+      for (int i = 0; i < utf8.length; i++) {
+
+        if (utf8[i] == '.') {
+          utf8[i] = '/';
+        }
+      }
+
+      return utf8;
+    }
+
+    private static byte[] prependAscii(final String string, final byte[] utf8) {
+
+      final byte[] prependedUtf8 = new byte[string.length() + utf8.length];
+
+      for (int i = 0; i < string.length(); i++) {
+
+        final char current = string.charAt(i);
+
+        if (ASSERT_ENABLED) {
+          assertAsciiPrintable(current);
+          final int i_ = i;
+          assertTrue(
+              i < prependedUtf8.length,
+              () ->
+                  i_
+                      + " out of bounds for \""
+                      + new String(prependedUtf8, StandardCharsets.UTF_8)
+                      + "\" with length: "
+                      + prependedUtf8.length);
+        }
+
+        prependedUtf8[i] = (byte) current;
+      }
+
+      System.arraycopy(utf8, 0, prependedUtf8, string.length(), utf8.length);
+      return prependedUtf8;
     }
   }
 
@@ -1132,7 +1216,7 @@ public final class Namespacer {
     }
 
     private static boolean currentMatches(final ByteParser parser, final char char_) {
-      Assert.assertAsciiPrintable(char_);
+      assertAsciiPrintable(char_);
       return currentMatches(parser, (byte) char_);
     }
 
@@ -1219,4 +1303,6 @@ public final class Namespacer {
       return -1;
     }
   }
+
+  private Namespacer() {}
 }
