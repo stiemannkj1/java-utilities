@@ -1,4 +1,4 @@
-package dev.stiemannkj1.bytecode;
+package dev.stiemannkj1.bytecode.namespacer;
 
 import static dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray.size;
 import static dev.stiemannkj1.util.Assert.ASSERT_ENABLED;
@@ -11,6 +11,7 @@ import static dev.stiemannkj1.util.Hex.appendHexString;
 import dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray;
 import dev.stiemannkj1.util.Assert;
 import dev.stiemannkj1.util.References.LongRef;
+import dev.stiemannkj1.util.WithReusableStringBuilder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
@@ -19,7 +20,6 @@ import java.util.Set;
 
 public final class Namespacer {
 
-  private static final int DEFAULT_STRING_BUILDER_SIZE = 256;
   private static final int U2_MAX_VALUE = (1 << 16) - 1;
   private static final String NOT_SIGNATURE = Namespacer.class.getTypeName() + ".NOT_SIGNATURE";
 
@@ -117,19 +117,18 @@ public final class Namespacer {
     }
   }
 
-  public static final class ObjectPool {
+  public static final class ObjectPool extends WithReusableStringBuilder {
 
     private static final short MAX_CLASS_FILE_MAJOR_VERSION = /* Java 22 */ 66;
 
     private long maxClassFileMajorVersion = MAX_CLASS_FILE_MAJOR_VERSION;
-    private Replacements replacements = new Replacements();
+    Replacements replacements = new Replacements();
     private ByteParser byteParser = new ByteParser();
     private LongRef i8Ref = new LongRef();
     private Utf8ConstantInfo utf8ConstantInfo = new Utf8ConstantInfo();
-    private StringBuilder errorMessageBuilder = new StringBuilder(DEFAULT_STRING_BUILDER_SIZE);
 
     private static StringBuilder errorMessageBuilder(final ObjectPool objectPool) {
-      return objectPool.errorMessageBuilder;
+      return objectPool.resetStringBuilder();
     }
 
     /**
@@ -1064,7 +1063,7 @@ public final class Namespacer {
     private static final ConstantPoolTag[] VALUES = ConstantPoolTag.values();
   }
 
-  private static final class Replacements {
+  static final class Replacements {
 
     private static final Replacements EMPTY = new Replacements();
 
@@ -1076,6 +1075,10 @@ public final class Namespacer {
     private byte[][] before;
     private byte[][] after;
     private int length;
+
+    String[] beforePath;
+    String[] afterPath;
+    int paths;
 
     private static void reset(
         final Replacements replacements, final Map<String, String> replacementsMap) {
@@ -1091,6 +1094,9 @@ public final class Namespacer {
       if (replacements.before == null || replacementsSize > replacements.before.length) {
         replacements.before = new byte[replacementsSize][];
         replacements.after = new byte[replacementsSize][];
+        final int paths = replacementsMap.size() * 4;
+        replacements.beforePath = new String[paths];
+        replacements.afterPath = new String[paths];
       }
 
       final Set<Map.Entry<String, String>> entries = replacementsMap.entrySet();
@@ -1109,6 +1115,13 @@ public final class Namespacer {
         replacements.before[i] = prependAscii(metaInfServices, beforeWithPeriods);
         replacements.after[i] = prependAscii(metaInfServices, afterWithPeriods);
 
+        replacements.beforePath[replacements.paths] =
+            new String(replacements.before[i], StandardCharsets.UTF_8);
+        replacements.afterPath[replacements.paths] =
+            new String(replacements.after[i], StandardCharsets.UTF_8);
+
+        replacements.paths++;
+
         i++;
 
         final String metaInfServicesAbsolute = "/META-INF/services/";
@@ -1120,6 +1133,13 @@ public final class Namespacer {
         final String webInfServices = "WEB-INF/classes/META-INF/services/";
         replacements.before[i] = prependAscii(webInfServices, beforeWithPeriods);
         replacements.after[i] = prependAscii(webInfServices, afterWithPeriods);
+
+        replacements.beforePath[replacements.paths] =
+            new String(replacements.before[i], StandardCharsets.UTF_8);
+        replacements.afterPath[replacements.paths] =
+            new String(replacements.after[i], StandardCharsets.UTF_8);
+
+        replacements.paths++;
 
         i++;
 
@@ -1136,6 +1156,13 @@ public final class Namespacer {
             toInternalName(Arrays.copyOf(afterWithPeriods, afterWithPeriods.length));
         final byte[] afterWithSlashes = replacements.after[i];
 
+        replacements.beforePath[replacements.paths] =
+            new String(replacements.before[i], StandardCharsets.UTF_8);
+        replacements.afterPath[replacements.paths] =
+            new String(replacements.after[i], StandardCharsets.UTF_8);
+
+        replacements.paths++;
+
         i++;
 
         replacements.before[i] = prependAscii("/", beforeWithSlashes);
@@ -1145,6 +1172,13 @@ public final class Namespacer {
 
         replacements.before[i] = prependAscii("WEB-INF/classes/", beforeWithSlashes);
         replacements.after[i] = prependAscii("WEB-INF/classes/", afterWithSlashes);
+
+        replacements.beforePath[replacements.paths] =
+            new String(replacements.before[i], StandardCharsets.UTF_8);
+        replacements.afterPath[replacements.paths] =
+            new String(replacements.after[i], StandardCharsets.UTF_8);
+
+        replacements.paths++;
 
         i++;
 
