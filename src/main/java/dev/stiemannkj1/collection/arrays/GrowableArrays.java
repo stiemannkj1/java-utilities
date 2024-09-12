@@ -3,6 +3,7 @@ package dev.stiemannkj1.collection.arrays;
 import static dev.stiemannkj1.util.Assert.ASSERT_ENABLED;
 import static dev.stiemannkj1.util.Assert.assertAsciiPrintable;
 import static dev.stiemannkj1.util.Assert.assertFalse;
+import static dev.stiemannkj1.util.Assert.assertPositive;
 import static dev.stiemannkj1.util.Assert.assertTrue;
 
 import java.io.IOException;
@@ -20,14 +21,14 @@ public final class GrowableArrays {
     private int size;
 
     public GrowableByteArray(final int initialCapacity) {
-      bytes = new byte[initialCapacity];
+      bytes = new byte[assertPositive(initialCapacity, "initialCapacity")];
     }
 
     public static void clear(final GrowableByteArray array) {
-      resize(array, 0);
+      expand(array, 0);
     }
 
-    public static void resize(final GrowableByteArray array, final int newSize) {
+    public static void expand(final GrowableByteArray array, final int newSize) {
 
       if (ASSERT_ENABLED) {
         assertTrue(newSize >= 0, () -> "Array size must not be negative.");
@@ -127,18 +128,23 @@ public final class GrowableArrays {
       dest.size = destPos + length;
     }
 
-    public static int read(
-        final InputStream inputStream, final GrowableByteArray array, final int bytesToRead)
+    public static void readFully(final GrowableByteArray array, final InputStream inputStream)
         throws IOException {
-      growIfNecessary(array, array.size + bytesToRead);
-      final int read = inputStream.read(array.bytes, array.size, bytesToRead);
+      int read = 0;
 
-      if (read < 1) {
-        return read;
+      while ((read =
+              inputStream.read(
+                  GrowableByteArray.bytes(array),
+                  read,
+                  GrowableByteArray.bytes(array).length - read))
+          > -1) {
+
+        array.size += read;
+
+        if (GrowableByteArray.size(array) == GrowableByteArray.bytes(array).length) {
+          GrowableByteArray.expand(array, GrowableByteArray.size(array) << 1);
+        }
       }
-
-      array.size += read;
-      return read;
     }
 
     private static void checkMaxValue(final int size) {

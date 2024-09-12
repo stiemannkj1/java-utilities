@@ -525,7 +525,7 @@ public final class Namespacer {
           constant.startIndexAfter,
           constant.lengthBefore);
       parser.currentIndex = parser.maxIndexExclusive;
-      GrowableByteArray.resize(classFileAfter, constant.startIndexAfter + constant.lengthBefore);
+      GrowableByteArray.expand(classFileAfter, constant.startIndexAfter + constant.lengthBefore);
       return null;
     }
 

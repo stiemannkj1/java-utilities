@@ -1,10 +1,12 @@
 package dev.stiemannkj1.bytecode;
 
 import static dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray.size;
+import static dev.stiemannkj1.util.Assert.assertNotNull;
 
 import dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 
 public final class ClassGenerator extends ClassLoader {
@@ -44,5 +46,24 @@ public final class ClassGenerator extends ClassLoader {
 
   public ClassGenerator(final ClassLoader parent) {
     super(parent);
+  }
+
+  public static final class ClassUtil {
+
+    public static String toEntryPath(final Class<?> aClass) {
+      return aClass.getTypeName().replace(".", "/") + ".class";
+    }
+
+    public static InputStream classAsStream(final Class<?> aClass) {
+      return assertNotNull(aClass.getClassLoader().getResourceAsStream(toEntryPath(aClass)));
+    }
+
+    public static byte[] readClassBytes(final Class<?> aClass) throws IOException {
+      try (InputStream inputStream = classAsStream(aClass)) {
+        return inputStream.readAllBytes();
+      }
+    }
+
+    private ClassUtil() {}
   }
 }

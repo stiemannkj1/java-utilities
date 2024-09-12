@@ -57,6 +57,12 @@ public final class Assert {
     return assertNotEmpty(string, "String");
   }
 
+  public static <T> T[] assertNotEmpty(final T[] array) {
+    assertNotNull(array);
+    assertTrue(array.length > 0, () -> "Array size must be greater than 0.");
+    return array;
+  }
+
   public static char assertAsciiPrintable(final char char_) {
 
     if (!ASSERT_ENABLED) {
@@ -81,6 +87,17 @@ public final class Assert {
     return long_;
   }
 
+  public static int assertNotNegative(final int int_, final String name) {
+
+    if (!ASSERT_ENABLED) {
+      return int_;
+    }
+
+    assertTrue(0 <= int_, () -> "Expected " + name + " not to be negative, but was " + int_ + ".");
+
+    return int_;
+  }
+
   public static long assertPositive(final long long_, final String name) {
 
     if (!ASSERT_ENABLED) {
@@ -90,5 +107,16 @@ public final class Assert {
     assertTrue(0 < long_, () -> "Expected " + name + " to be positive, but was " + long_ + ".");
 
     return long_;
+  }
+
+  public static int assertPositive(final int int_, final String name) {
+
+    if (!ASSERT_ENABLED) {
+      return int_;
+    }
+
+    assertTrue(0 < int_, () -> "Expected " + name + " to be positive, but was " + int_ + ".");
+
+    return int_;
   }
 }

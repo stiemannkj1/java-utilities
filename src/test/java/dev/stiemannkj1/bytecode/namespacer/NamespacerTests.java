@@ -1,8 +1,8 @@
 package dev.stiemannkj1.bytecode.namespacer;
 
+import static dev.stiemannkj1.bytecode.ClassGenerator.ClassUtil.classAsStream;
 import static dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray.bytes;
 import static dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray.size;
-import static dev.stiemannkj1.util.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -11,8 +11,6 @@ import dev.stiemannkj1.bytecode.ClassGenerator;
 import dev.stiemannkj1.bytecode.namespacer.Namespacer.ObjectPool;
 import dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -26,7 +24,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 final class NamespacerTests {
-  public static final int INITIAL_CLASS_ARRAY_CAPACITY = 1 >> 16;
+  public static final int INITIAL_CLASS_ARRAY_CAPACITY = 1 << 16;
   // TODO namespace and merge class names in META-INF/services and META-INF/groovy
   // TODO handle manifest and properties files. Merging properties should probably require users to
   // handle conflicts by creating a properties file with any conflicting properties.
@@ -663,10 +661,10 @@ final class NamespacerTests {
       final Map<String, String> replacements,
       final String classNameAfter,
       final List<String> expectedAfter)
-      throws ReflectiveOperationException {
+      throws IOException, ReflectiveOperationException {
 
     final GrowableByteArray classFileBefore = new GrowableByteArray(INITIAL_CLASS_ARRAY_CAPACITY);
-    readBytes(Before.class, classFileBefore);
+    GrowableByteArray.readFully(classFileBefore, classAsStream(Before.class));
     final ClassGenerator classGenerator =
         new ClassGenerator(NamespacerTests.class.getClassLoader());
     final GrowableByteArray classFileAfter = new GrowableByteArray(INITIAL_CLASS_ARRAY_CAPACITY);
@@ -699,7 +697,8 @@ final class NamespacerTests {
     return args.stream();
   }
 
-  static Stream<Arguments> descriptorsShorterAfter() throws ReflectiveOperationException {
+  static Stream<Arguments> descriptorsShorterAfter()
+      throws IOException, ReflectiveOperationException {
     final Map<String, String> replacements = new HashMap<>();
     replacements.put("dev.stiemannkj1.bytecode.namespacer.", "now.im.namespaced.");
 
@@ -718,7 +717,8 @@ final class NamespacerTests {
     assertEquals(expected, namespaced);
   }
 
-  static Stream<Arguments> descriptorsLongerAfter() throws ReflectiveOperationException {
+  static Stream<Arguments> descriptorsLongerAfter()
+      throws IOException, ReflectiveOperationException {
     final Map<String, String> replacements = new HashMap<>();
     replacements.put(
         "dev.stiemannkj1.bytecode.namespacer.",
@@ -741,7 +741,7 @@ final class NamespacerTests {
     assertEquals(expected, namespaced);
   }
 
-  static Stream<Arguments> descriptorsSameSize() throws ReflectiveOperationException {
+  static Stream<Arguments> descriptorsSameSize() throws IOException, ReflectiveOperationException {
     final Map<String, String> replacements = new HashMap<>();
     replacements.put(
         "dev.stiemannkj1.bytecode.namespacer.", "now.im.namespaced.same.size12345678.");
@@ -763,7 +763,8 @@ final class NamespacerTests {
     assertEquals(expected, namespaced);
   }
 
-  static Stream<Arguments> descriptorsReplaceNestedNested() throws ReflectiveOperationException {
+  static Stream<Arguments> descriptorsReplaceNestedNested()
+      throws IOException, ReflectiveOperationException {
     final Map<String, String> replacement = new HashMap<>();
     replacement.put(
         "dev.stiemannkj1.bytecode.namespacer.NamespacerTests$ConcreteGenericClassToNamespace$Nested$NestedNested",
@@ -799,7 +800,9 @@ final class NamespacerTests {
           "now.im.namespaced.NamespacerTests$ConcreteGenericClassToNamespace$ThrowableToNamespace";
       GrowableByteArray.clear(classFileBefore);
       GrowableByteArray.clear(classFileAfter);
-      readBytes(ConcreteGenericClassToNamespace.ThrowableToNamespace.class, classFileBefore);
+      GrowableByteArray.readFully(
+          classFileBefore,
+          classAsStream(ConcreteGenericClassToNamespace.ThrowableToNamespace.class));
       assertNull(
           Namespacer.namespace(
               objectPool,
@@ -813,7 +816,7 @@ final class NamespacerTests {
       className = "now.im.namespaced.NamespacerTests$ClassToNamespace";
       GrowableByteArray.clear(classFileBefore);
       GrowableByteArray.clear(classFileAfter);
-      readBytes(ClassToNamespace.class, classFileBefore);
+      GrowableByteArray.readFully(classFileBefore, classAsStream(ClassToNamespace.class));
       assertNull(
           Namespacer.namespace(
               objectPool,
@@ -832,7 +835,7 @@ final class NamespacerTests {
       className = "now.im.namespaced.NamespacerTests$NestedGeneric";
       GrowableByteArray.clear(classFileBefore);
       GrowableByteArray.clear(classFileAfter);
-      readBytes(NestedGeneric.class, classFileBefore);
+      GrowableByteArray.readFully(classFileBefore, classAsStream(NestedGeneric.class));
       assertNull(
           Namespacer.namespace(
               objectPool,
@@ -850,7 +853,8 @@ final class NamespacerTests {
       className = "now.im.namespaced.NamespacerTests$AbstractGenericClassToNamespace";
       GrowableByteArray.clear(classFileBefore);
       GrowableByteArray.clear(classFileAfter);
-      readBytes(AbstractGenericClassToNamespace.class, classFileBefore);
+      GrowableByteArray.readFully(
+          classFileBefore, classAsStream(AbstractGenericClassToNamespace.class));
       assertNull(
           Namespacer.namespace(
               objectPool,
@@ -865,7 +869,8 @@ final class NamespacerTests {
       className = "now.im.namespaced.NamespacerTests$ConcreteGenericClassToNamespace$Nested";
       GrowableByteArray.clear(classFileBefore);
       GrowableByteArray.clear(classFileAfter);
-      readBytes(ConcreteGenericClassToNamespace.Nested.class, classFileBefore);
+      GrowableByteArray.readFully(
+          classFileBefore, classAsStream(ConcreteGenericClassToNamespace.Nested.class));
       assertNull(
           Namespacer.namespace(
               objectPool,
@@ -879,7 +884,8 @@ final class NamespacerTests {
       className = "now.im.namespaced.NamespacerTests$ConcreteGenericClassToNamespace";
       GrowableByteArray.clear(classFileBefore);
       GrowableByteArray.clear(classFileAfter);
-      readBytes(ConcreteGenericClassToNamespace.class, classFileBefore);
+      GrowableByteArray.readFully(
+          classFileBefore, classAsStream(ConcreteGenericClassToNamespace.class));
       assertNull(
           Namespacer.namespace(
               objectPool,
@@ -967,24 +973,6 @@ final class NamespacerTests {
 
   private static String classNameToPath(final Class<?> aClass) {
     return aClass.getTypeName().replace('.', '/') + ".class";
-  }
-
-  private static void readBytes(final Class<?> aClass, final GrowableByteArray array) {
-
-    final URL url = aClass.getResource('/' + classNameToPath(aClass));
-    final int maxSize = 1 << 20;
-    GrowableByteArray.growIfNecessary(array, maxSize);
-
-    try (final InputStream inputStream = assertNotNull(url.openStream())) {
-
-      final int read = GrowableByteArray.read(inputStream, array, maxSize);
-
-      if (read >= maxSize) {
-        throw new RuntimeException("Test class file was larger than " + maxSize);
-      }
-    } catch (final IOException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   private static Object invoke(

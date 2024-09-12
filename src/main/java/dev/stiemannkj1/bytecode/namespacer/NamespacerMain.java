@@ -120,14 +120,18 @@ public final class NamespacerMain {
 
         // Ignore duplicates if they duplicate files in the first JAR so that callers can handle
         // duplicates by overriding them from their own JAR.
-        if (objectPool.processedFiles.putIfAbsent(name, assertNotNull(objectPool.first))
-            == Boolean.FALSE) {
-          objectPool.errors.add(
-              objectPool
-                  .resetStringBuilder()
-                  .append("Duplicate file found ")
-                  .append(name)
-                  .toString());
+        final Boolean fileWasOverridden =
+            objectPool.processedFiles.putIfAbsent(name, assertNotNull(objectPool.first));
+
+        if (fileWasOverridden != null) {
+          if (fileWasOverridden == Boolean.FALSE) {
+            objectPool.errors.add(
+                objectPool
+                    .resetStringBuilder()
+                    .append("Duplicate file found ")
+                    .append(name)
+                    .toString());
+          }
           continue;
         }
 
@@ -151,9 +155,9 @@ public final class NamespacerMain {
 
         // TODO test and verify that this allows for reproducible JARs.
         zipEntryToWrite.setTime(zipEntryToRead.getTime());
+        jarOutputStream.putNextEntry(zipEntryToWrite);
 
         if (zipEntryToWrite.isDirectory()) {
-          jarOutputStream.putNextEntry(zipEntryToWrite);
           continue;
         }
 
@@ -181,7 +185,7 @@ public final class NamespacerMain {
             > -1) {
           if (GrowableByteArray.size(objectPool.classFileBefore)
               == GrowableByteArray.bytes(objectPool.classFileBefore).length) {
-            GrowableByteArray.resize(
+            GrowableByteArray.expand(
                 objectPool.classFileBefore,
                 GrowableByteArray.size(objectPool.classFileBefore) << 1);
           }
