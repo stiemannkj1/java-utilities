@@ -14,7 +14,7 @@ public final class ClassGenerator extends ClassLoader {
     return defineClass(className, classBytes, offset, length);
   }
 
-  public static void writeClass(
+  public static void writeClassOnError(
       final Throwable e, final String className, final GrowableByteArray classBytes) {
 
     try {
@@ -42,7 +42,7 @@ public final class ClassGenerator extends ClassLoader {
     }
   }
 
-  ClassGenerator(final ClassLoader parent) {
+  public ClassGenerator(final ClassLoader parent) {
     super(parent);
   }
 }
