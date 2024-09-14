@@ -18,6 +18,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
+// TODO JMH benchmark vs ASM relocator
 public final class Namespacer {
 
   private static final int U2_MAX_VALUE = (1 << 16) - 1;
@@ -35,6 +36,7 @@ public final class Namespacer {
    */
   private static final boolean[] ASCII_CLASS_TYPE_SIGNATURE_CHARS;
 
+  // TODO replace with trie/prefix tree.
   private static final byte[][] NOT_TYPE;
   private static final byte[][] STANDARD_CONSTANTS;
   private static final byte[][] NOT_GENERIC;
@@ -127,6 +129,12 @@ public final class Namespacer {
     private LongRef i8Ref = new LongRef();
     private Utf8ConstantInfo utf8ConstantInfo = new Utf8ConstantInfo();
 
+    public ObjectPool() {}
+
+    public ObjectPool(final Map<String, String> replacements) {
+      Replacements.reset(this.replacements, replacements);
+    }
+
     private static StringBuilder errorMessageBuilder(final ObjectPool objectPool) {
       return objectPool.resetStringBuilder();
     }
@@ -156,6 +164,7 @@ public final class Namespacer {
     }
   }
 
+  // TODO create override that throws exception (IOException?).
   public static String namespace(
       final ObjectPool objectPool,
       final String fileName,
@@ -525,7 +534,6 @@ public final class Namespacer {
           constant.startIndexAfter,
           constant.lengthBefore);
       parser.currentIndex = parser.maxIndexExclusive;
-      GrowableByteArray.expand(classFileAfter, constant.startIndexAfter + constant.lengthBefore);
       return null;
     }
 
@@ -1063,6 +1071,7 @@ public final class Namespacer {
     private static final ConstantPoolTag[] VALUES = ConstantPoolTag.values();
   }
 
+  // TODO switch to using a trie/prefix tree under the hood
   static final class Replacements {
 
     private static final Replacements EMPTY = new Replacements();

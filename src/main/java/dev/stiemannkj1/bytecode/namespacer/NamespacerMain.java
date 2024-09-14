@@ -53,7 +53,7 @@ public final class NamespacerMain {
     final File partialJar = new File(outputJarParent, outputJar.getName() + ".PART.zip");
     final ObjectPool objectPool =
         new ObjectPool(
-            new Namespacer.ObjectPool(),
+            new Namespacer.ObjectPool(replacementsMap),
             new GrowableByteArray(initialClassFileBufferCapacity),
             new GrowableByteArray(initialClassFileBufferCapacity));
     IOException error = null;
@@ -175,21 +175,9 @@ public final class NamespacerMain {
           }
         }
 
-        int read = 0;
-
-        while ((read =
-                jarInputStream.read(
-                    GrowableByteArray.bytes(objectPool.classFileBefore),
-                    read,
-                    GrowableByteArray.bytes(objectPool.classFileBefore).length - read))
-            > -1) {
-          if (GrowableByteArray.size(objectPool.classFileBefore)
-              == GrowableByteArray.bytes(objectPool.classFileBefore).length) {
-            GrowableByteArray.expand(
-                objectPool.classFileBefore,
-                GrowableByteArray.size(objectPool.classFileBefore) << 1);
-          }
-        }
+        GrowableByteArray.clear(objectPool.classFileBefore);
+        GrowableByteArray.clear(objectPool.classFileAfter);
+        GrowableByteArray.readFully(objectPool.classFileBefore, jarInputStream);
 
         final String result =
             Namespacer.namespace(

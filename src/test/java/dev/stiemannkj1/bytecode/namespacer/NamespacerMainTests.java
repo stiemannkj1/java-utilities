@@ -66,6 +66,8 @@ public final class NamespacerMainTests {
       assertEquals("foo.bar.Class1Jar2", newInstance(classLoader, "foo.bar.Class1Jar2").toString());
       assertEquals("foo.bar.Class2Jar2", newInstance(classLoader, "foo.bar.Class2Jar2").toString());
     }
+
+    // TODO verify JAR entry timestamps
   }
 
   private static void writeEntryForClass(
@@ -108,14 +110,14 @@ public final class NamespacerMainTests {
   public static final class Class1Jar2 {
     @Override
     public String toString() {
-      return "dev.stiemannkj1.bytecode.namespacer.NamespacerMainTests$Class1Jar1";
+      return "dev.stiemannkj1.bytecode.namespacer.NamespacerMainTests$Class1Jar2";
     }
   }
 
   public static final class Class2Jar2 {
     @Override
     public String toString() {
-      return "dev.stiemannkj1.bytecode.namespacer.NamespacerMainTests$Class2Jar1";
+      return "dev.stiemannkj1.bytecode.namespacer.NamespacerMainTests$Class2Jar2";
     }
   }
 }
