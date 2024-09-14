@@ -1,11 +1,14 @@
 package dev.stiemannkj1.util;
 
+import static dev.stiemannkj1.util.StringUtils.isAsciiPrintable;
+
 import java.util.function.Supplier;
 
 public final class Assert {
 
+  public static final String ASSERT_ENABLED_PROPERTY_NAME = Assert.class.getTypeName() + ".enabled";
   public static final boolean ASSERT_ENABLED =
-      Boolean.parseBoolean(System.getProperty(Assert.class.getTypeName() + ".enabled"));
+      Boolean.parseBoolean(System.getProperty(ASSERT_ENABLED_PROPERTY_NAME));
 
   public static void assertTrue(final boolean value, final Supplier<String> message) {
 
@@ -70,7 +73,7 @@ public final class Assert {
     }
 
     assertTrue(
-        '\u0020' <= char_ && char_ <= '\u007f',
+        isAsciiPrintable(char_),
         () -> "Only ASCII printable characters are supported for this method, but found: " + char_);
     return char_;
   }

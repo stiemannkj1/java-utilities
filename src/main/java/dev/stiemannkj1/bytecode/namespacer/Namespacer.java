@@ -1,12 +1,16 @@
 package dev.stiemannkj1.bytecode.namespacer;
 
+import static dev.stiemannkj1.bytecode.namespacer.NamespacerTablesGenerated.ASCII_CLASS_TYPE_SIGNATURE_CHARS;
+import static dev.stiemannkj1.bytecode.namespacer.NamespacerTablesGenerated.NOT_GENERIC;
+import static dev.stiemannkj1.bytecode.namespacer.NamespacerTablesGenerated.NOT_TYPE;
+import static dev.stiemannkj1.bytecode.namespacer.NamespacerTablesGenerated.STANDARD_CONSTANTS;
 import static dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray.size;
 import static dev.stiemannkj1.util.Assert.ASSERT_ENABLED;
 import static dev.stiemannkj1.util.Assert.assertAsciiPrintable;
 import static dev.stiemannkj1.util.Assert.assertNotNegative;
 import static dev.stiemannkj1.util.Assert.assertNotNull;
 import static dev.stiemannkj1.util.Assert.assertTrue;
-import static dev.stiemannkj1.util.Hex.appendHexString;
+import static dev.stiemannkj1.util.StringUtils.appendHexString;
 
 import dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray;
 import dev.stiemannkj1.util.Assert;
@@ -23,101 +27,6 @@ public final class Namespacer {
 
   private static final int U2_MAX_VALUE = (1 << 16) - 1;
   private static final String NOT_SIGNATURE = Namespacer.class.getTypeName() + ".NOT_SIGNATURE";
-
-  // TODO generate tables and byte arrays at compile time.
-  /**
-   * Lookup table to determine if an ASCII character is a valid Java ClassTypeSignature as described
-   * in the JVM spec section 4.7.9.1 Signatures
-   * (https://docs.oracle.com/javase/specs/jvms/se22/html/jvms-4.html#jvms-ClassTypeSignature).
-   *
-   * <p>NOTE: this table also allows '$' (which is not allowed in the spec) so that code can be
-   * reused for class names, file names, internal class names, and class type signatures. The
-   * namespacer avoids strictly validating strings and signatures for the sake of performance.
-   */
-  private static final boolean[] ASCII_CLASS_TYPE_SIGNATURE_CHARS;
-
-  // TODO replace with trie/prefix tree.
-  private static final byte[][] NOT_TYPE;
-  private static final byte[][] STANDARD_CONSTANTS;
-  private static final byte[][] NOT_GENERIC;
-
-  static {
-    ASCII_CLASS_TYPE_SIGNATURE_CHARS = new boolean[128];
-
-    for (int i = 0; i < ASCII_CLASS_TYPE_SIGNATURE_CHARS.length; i++) {
-      ASCII_CLASS_TYPE_SIGNATURE_CHARS[i] =
-          '$' == i
-              || ('.' <= i && i <= '9')
-              || ('A' <= i && i <= 'Z')
-              || ('a' <= i && i <= 'z')
-              || '_' == i;
-    }
-
-    final String[] standardConstants =
-        new String[] {
-          "ConstantValue",
-          "Code",
-          "StackMapTable",
-          "Exceptions",
-          "InnerClasses",
-          "EnclosingMethod",
-          "Synthetic",
-          "Signature",
-          "SourceFile",
-          "SourceDebugExtension",
-          "LineNumberTable",
-          "LocalVariableTable",
-          "LocalVariableTypeTable",
-          "Deprecated",
-          "RuntimeVisibleAnnotations",
-          "RuntimeInvisibleAnnotations",
-          "RuntimeVisibleParameterAnnotations",
-          "RuntimeInvisibleParameterAnnotations",
-          "RuntimeVisibleTypeAnnotations",
-          "RuntimeInvisibleTypeAnnotations",
-          "AnnotationDefault",
-          "BootstrapMethods",
-          "MethodParameters",
-          "Module",
-          "ModulePackages",
-          "ModuleMainClass",
-          "NestHost",
-          "NestMembers",
-          "Record",
-          "PermittedSubclasses"
-        };
-    STANDARD_CONSTANTS = new byte[standardConstants.length][];
-    NOT_TYPE = new byte[3][];
-    int notTypeIndex = 0;
-
-    for (int i = 0; i < standardConstants.length; i++) {
-
-      STANDARD_CONSTANTS[i] = standardConstants[i].getBytes(StandardCharsets.UTF_8);
-
-      if ('L' == STANDARD_CONSTANTS[i][0]) {
-        NOT_TYPE[notTypeIndex++] = STANDARD_CONSTANTS[i];
-      }
-    }
-
-    if (ASSERT_ENABLED) {
-      for (int i = 0; i < NOT_TYPE.length; i++) {
-        final int i_ = i;
-        assertTrue(
-            'L' == assertNotNull(NOT_TYPE[i])[0],
-            () ->
-                "NOT_TYPE values must start with 'L', but found \""
-                    + new String(NOT_TYPE[i_], StandardCharsets.UTF_8)
-                    + ".");
-      }
-    }
-
-    final String[] notGeneric = new String[] {"<init>", "<clinit>"};
-    NOT_GENERIC = new byte[notGeneric.length][];
-
-    for (int i = 0; i < notGeneric.length; i++) {
-      NOT_GENERIC[i] = notGeneric[i].getBytes(StandardCharsets.UTF_8);
-    }
-  }
 
   public static final class ObjectPool extends WithReusableStringBuilder {
 
@@ -164,6 +73,8 @@ public final class Namespacer {
     }
   }
 
+  // TODO add fuzzer tests where constant is random values and constant length is invalid and
+  // constant is not value UTF8
   // TODO create override that throws exception (IOException?).
   public static String namespace(
       final ObjectPool objectPool,
@@ -183,15 +94,15 @@ public final class Namespacer {
               .append(fileName)
               .append(" at offset ")
               .append(parser.currentIndex)
-              .append(". Expecting ");
-      appendHexString(errorMessage, 0xCAFEBABE);
+              .append(". Expecting 0x");
+      appendHexString(errorMessage, 0xCAFEBABE, Integer.BYTES);
 
       final LongRef actualMagicBytes =
           ByteParser.consumeOptionalUnsignedBytes(parser, Integer.BYTES, objectPool.i8Ref);
 
       if (actualMagicBytes != null) {
-        errorMessage.append(" but found ");
-        appendHexString(errorMessage, (int) actualMagicBytes.value);
+        errorMessage.append(" but found 0x");
+        appendHexString(errorMessage, (int) actualMagicBytes.value, Integer.BYTES);
         errorMessage.append(".");
       } else {
         errorMessage
@@ -295,7 +206,7 @@ public final class Namespacer {
         continue;
       }
 
-      Utf8ConstantInfo.initialize(
+      Utf8ConstantInfo.reset(
           utf8ConstantInfo,
           i,
           constantStartIndex,
@@ -389,7 +300,7 @@ public final class Namespacer {
 
     private Utf8ConstantInfo() {}
 
-    private static void initialize(
+    private static void reset(
         final Utf8ConstantInfo constant,
         final int constantPoolIndex,
         final int startIndexBefore,
@@ -602,6 +513,7 @@ public final class Namespacer {
         parser.currentIndex++;
         return null;
       case 'V':
+        // void is not allowed in type signatures.
         // fallthrough;
       default:
         return NOT_SIGNATURE;
@@ -789,6 +701,10 @@ public final class Namespacer {
           closedParens = true;
           // fallthrough;
         case 'V':
+          if (!closedParens) {
+            return NOT_SIGNATURE;
+          }
+
           GrowableByteArray.append(classFileAfter, currentChar);
           parser.currentIndex++;
           break;
@@ -920,9 +836,8 @@ public final class Namespacer {
 
       emptyGenerics = false;
 
-      // Primitive types aren't supported for Generics.
-
-      // Consume until ':'.
+      // Primitive types aren't supported for Generics, so we can safely consume all characters
+      // until ':' and assume they are the generic name/placeholder.
       final int start = parser.currentIndex;
       final int end = ByteParser.consumeUntil(parser, ':');
 
@@ -1059,6 +974,8 @@ public final class Namespacer {
     CONSTANT_Module,
     CONSTANT_Package;
 
+    private static final ConstantPoolTag[] VALUES = ConstantPoolTag.values();
+
     ConstantPoolTag() {
       if (ASSERT_ENABLED) {
         final int ordinal = ordinal();
@@ -1067,8 +984,6 @@ public final class Namespacer {
             () -> "ConstantPoolTag must fit into a byte.");
       }
     }
-
-    private static final ConstantPoolTag[] VALUES = ConstantPoolTag.values();
   }
 
   // TODO switch to using a trie/prefix tree under the hood
@@ -1241,6 +1156,9 @@ public final class Namespacer {
     }
   }
 
+  // TODO we could avoid a significant amount of branching here by assuming valid class files. We
+  // don't really handle errors anyway. We could have a strict mode to return quality errors and a
+  // non-strict mode which will throw IndexOutOfBounds but reduce a lot of the bounds checking.
   private static final class ByteParser {
     private GrowableByteArray bytes;
     private int currentIndex;
@@ -1258,9 +1176,9 @@ public final class Namespacer {
       return parser.maxIndexExclusive <= parser.currentIndex;
     }
 
-    private static boolean currentMatches(final ByteParser parser, final char char_) {
-      assertAsciiPrintable(char_);
-      return currentMatches(parser, (byte) char_);
+    private static boolean currentMatches(final ByteParser parser, final char ascii) {
+      assertAsciiPrintable(ascii);
+      return currentMatches(parser, (byte) ascii);
     }
 
     private static boolean currentMatches(final ByteParser parser, final byte byte_) {

@@ -53,6 +53,7 @@ test {
 spotless {
   java {
     googleJavaFormat()
+    targetExclude("**/*Generated.java")
   }
   groovyGradle {
     greclipse().configFile("greclipse.properties")
