@@ -147,36 +147,36 @@ final class NamespacerTablesGenerated {
     };
 
     static final byte[][] STANDARD_CONSTANTS = new byte[][] {
-        /* "ConstantValue" */ new byte[] { 'C', 'o', 'n', 's', 't', 'a', 'n', 't', 'V', 'a', 'l', 'u', 'e'},
-        /* "Code" */ new byte[] { 'C', 'o', 'd', 'e'},
-        /* "StackMapTable" */ new byte[] { 'S', 't', 'a', 'c', 'k', 'M', 'a', 'p', 'T', 'a', 'b', 'l', 'e'},
-        /* "Exceptions" */ new byte[] { 'E', 'x', 'c', 'e', 'p', 't', 'i', 'o', 'n', 's'},
-        /* "InnerClasses" */ new byte[] { 'I', 'n', 'n', 'e', 'r', 'C', 'l', 'a', 's', 's', 'e', 's'},
-        /* "EnclosingMethod" */ new byte[] { 'E', 'n', 'c', 'l', 'o', 's', 'i', 'n', 'g', 'M', 'e', 't', 'h', 'o', 'd'},
-        /* "Synthetic" */ new byte[] { 'S', 'y', 'n', 't', 'h', 'e', 't', 'i', 'c'},
-        /* "Signature" */ new byte[] { 'S', 'i', 'g', 'n', 'a', 't', 'u', 'r', 'e'},
-        /* "SourceFile" */ new byte[] { 'S', 'o', 'u', 'r', 'c', 'e', 'F', 'i', 'l', 'e'},
-        /* "SourceDebugExtension" */ new byte[] { 'S', 'o', 'u', 'r', 'c', 'e', 'D', 'e', 'b', 'u', 'g', 'E', 'x', 't', 'e', 'n', 's', 'i', 'o', 'n'},
-        /* "LineNumberTable" */ new byte[] { 'L', 'i', 'n', 'e', 'N', 'u', 'm', 'b', 'e', 'r', 'T', 'a', 'b', 'l', 'e'},
-        /* "LocalVariableTable" */ new byte[] { 'L', 'o', 'c', 'a', 'l', 'V', 'a', 'r', 'i', 'a', 'b', 'l', 'e', 'T', 'a', 'b', 'l', 'e'},
-        /* "LocalVariableTypeTable" */ new byte[] { 'L', 'o', 'c', 'a', 'l', 'V', 'a', 'r', 'i', 'a', 'b', 'l', 'e', 'T', 'y', 'p', 'e', 'T', 'a', 'b', 'l', 'e'},
-        /* "Deprecated" */ new byte[] { 'D', 'e', 'p', 'r', 'e', 'c', 'a', 't', 'e', 'd'},
-        /* "RuntimeVisibleAnnotations" */ new byte[] { 'R', 'u', 'n', 't', 'i', 'm', 'e', 'V', 'i', 's', 'i', 'b', 'l', 'e', 'A', 'n', 'n', 'o', 't', 'a', 't', 'i', 'o', 'n', 's'},
-        /* "RuntimeInvisibleAnnotations" */ new byte[] { 'R', 'u', 'n', 't', 'i', 'm', 'e', 'I', 'n', 'v', 'i', 's', 'i', 'b', 'l', 'e', 'A', 'n', 'n', 'o', 't', 'a', 't', 'i', 'o', 'n', 's'},
-        /* "RuntimeVisibleParameterAnnotations" */ new byte[] { 'R', 'u', 'n', 't', 'i', 'm', 'e', 'V', 'i', 's', 'i', 'b', 'l', 'e', 'P', 'a', 'r', 'a', 'm', 'e', 't', 'e', 'r', 'A', 'n', 'n', 'o', 't', 'a', 't', 'i', 'o', 'n', 's'},
-        /* "RuntimeInvisibleParameterAnnotations" */ new byte[] { 'R', 'u', 'n', 't', 'i', 'm', 'e', 'I', 'n', 'v', 'i', 's', 'i', 'b', 'l', 'e', 'P', 'a', 'r', 'a', 'm', 'e', 't', 'e', 'r', 'A', 'n', 'n', 'o', 't', 'a', 't', 'i', 'o', 'n', 's'},
-        /* "RuntimeVisibleTypeAnnotations" */ new byte[] { 'R', 'u', 'n', 't', 'i', 'm', 'e', 'V', 'i', 's', 'i', 'b', 'l', 'e', 'T', 'y', 'p', 'e', 'A', 'n', 'n', 'o', 't', 'a', 't', 'i', 'o', 'n', 's'},
-        /* "RuntimeInvisibleTypeAnnotations" */ new byte[] { 'R', 'u', 'n', 't', 'i', 'm', 'e', 'I', 'n', 'v', 'i', 's', 'i', 'b', 'l', 'e', 'T', 'y', 'p', 'e', 'A', 'n', 'n', 'o', 't', 'a', 't', 'i', 'o', 'n', 's'},
-        /* "AnnotationDefault" */ new byte[] { 'A', 'n', 'n', 'o', 't', 'a', 't', 'i', 'o', 'n', 'D', 'e', 'f', 'a', 'u', 'l', 't'},
-        /* "BootstrapMethods" */ new byte[] { 'B', 'o', 'o', 't', 's', 't', 'r', 'a', 'p', 'M', 'e', 't', 'h', 'o', 'd', 's'},
-        /* "MethodParameters" */ new byte[] { 'M', 'e', 't', 'h', 'o', 'd', 'P', 'a', 'r', 'a', 'm', 'e', 't', 'e', 'r', 's'},
-        /* "Module" */ new byte[] { 'M', 'o', 'd', 'u', 'l', 'e'},
-        /* "ModulePackages" */ new byte[] { 'M', 'o', 'd', 'u', 'l', 'e', 'P', 'a', 'c', 'k', 'a', 'g', 'e', 's'},
-        /* "ModuleMainClass" */ new byte[] { 'M', 'o', 'd', 'u', 'l', 'e', 'M', 'a', 'i', 'n', 'C', 'l', 'a', 's', 's'},
-        /* "NestHost" */ new byte[] { 'N', 'e', 's', 't', 'H', 'o', 's', 't'},
-        /* "NestMembers" */ new byte[] { 'N', 'e', 's', 't', 'M', 'e', 'm', 'b', 'e', 'r', 's'},
-        /* "Record" */ new byte[] { 'R', 'e', 'c', 'o', 'r', 'd'},
-        /* "PermittedSubclasses" */ new byte[] { 'P', 'e', 'r', 'm', 'i', 't', 't', 'e', 'd', 'S', 'u', 'b', 'c', 'l', 'a', 's', 's', 'e', 's'}
+        /* "ConstantValue" */ new byte[] { 'C', 'o', 'n', 's', 't', 'a', 'n', 't', 'V', 'a', 'l', 'u', 'e' },
+        /* "Code" */ new byte[] { 'C', 'o', 'd', 'e' },
+        /* "StackMapTable" */ new byte[] { 'S', 't', 'a', 'c', 'k', 'M', 'a', 'p', 'T', 'a', 'b', 'l', 'e' },
+        /* "Exceptions" */ new byte[] { 'E', 'x', 'c', 'e', 'p', 't', 'i', 'o', 'n', 's' },
+        /* "InnerClasses" */ new byte[] { 'I', 'n', 'n', 'e', 'r', 'C', 'l', 'a', 's', 's', 'e', 's' },
+        /* "EnclosingMethod" */ new byte[] { 'E', 'n', 'c', 'l', 'o', 's', 'i', 'n', 'g', 'M', 'e', 't', 'h', 'o', 'd' },
+        /* "Synthetic" */ new byte[] { 'S', 'y', 'n', 't', 'h', 'e', 't', 'i', 'c' },
+        /* "Signature" */ new byte[] { 'S', 'i', 'g', 'n', 'a', 't', 'u', 'r', 'e' },
+        /* "SourceFile" */ new byte[] { 'S', 'o', 'u', 'r', 'c', 'e', 'F', 'i', 'l', 'e' },
+        /* "SourceDebugExtension" */ new byte[] { 'S', 'o', 'u', 'r', 'c', 'e', 'D', 'e', 'b', 'u', 'g', 'E', 'x', 't', 'e', 'n', 's', 'i', 'o', 'n' },
+        /* "LineNumberTable" */ new byte[] { 'L', 'i', 'n', 'e', 'N', 'u', 'm', 'b', 'e', 'r', 'T', 'a', 'b', 'l', 'e' },
+        /* "LocalVariableTable" */ new byte[] { 'L', 'o', 'c', 'a', 'l', 'V', 'a', 'r', 'i', 'a', 'b', 'l', 'e', 'T', 'a', 'b', 'l', 'e' },
+        /* "LocalVariableTypeTable" */ new byte[] { 'L', 'o', 'c', 'a', 'l', 'V', 'a', 'r', 'i', 'a', 'b', 'l', 'e', 'T', 'y', 'p', 'e', 'T', 'a', 'b', 'l', 'e' },
+        /* "Deprecated" */ new byte[] { 'D', 'e', 'p', 'r', 'e', 'c', 'a', 't', 'e', 'd' },
+        /* "RuntimeVisibleAnnotations" */ new byte[] { 'R', 'u', 'n', 't', 'i', 'm', 'e', 'V', 'i', 's', 'i', 'b', 'l', 'e', 'A', 'n', 'n', 'o', 't', 'a', 't', 'i', 'o', 'n', 's' },
+        /* "RuntimeInvisibleAnnotations" */ new byte[] { 'R', 'u', 'n', 't', 'i', 'm', 'e', 'I', 'n', 'v', 'i', 's', 'i', 'b', 'l', 'e', 'A', 'n', 'n', 'o', 't', 'a', 't', 'i', 'o', 'n', 's' },
+        /* "RuntimeVisibleParameterAnnotations" */ new byte[] { 'R', 'u', 'n', 't', 'i', 'm', 'e', 'V', 'i', 's', 'i', 'b', 'l', 'e', 'P', 'a', 'r', 'a', 'm', 'e', 't', 'e', 'r', 'A', 'n', 'n', 'o', 't', 'a', 't', 'i', 'o', 'n', 's' },
+        /* "RuntimeInvisibleParameterAnnotations" */ new byte[] { 'R', 'u', 'n', 't', 'i', 'm', 'e', 'I', 'n', 'v', 'i', 's', 'i', 'b', 'l', 'e', 'P', 'a', 'r', 'a', 'm', 'e', 't', 'e', 'r', 'A', 'n', 'n', 'o', 't', 'a', 't', 'i', 'o', 'n', 's' },
+        /* "RuntimeVisibleTypeAnnotations" */ new byte[] { 'R', 'u', 'n', 't', 'i', 'm', 'e', 'V', 'i', 's', 'i', 'b', 'l', 'e', 'T', 'y', 'p', 'e', 'A', 'n', 'n', 'o', 't', 'a', 't', 'i', 'o', 'n', 's' },
+        /* "RuntimeInvisibleTypeAnnotations" */ new byte[] { 'R', 'u', 'n', 't', 'i', 'm', 'e', 'I', 'n', 'v', 'i', 's', 'i', 'b', 'l', 'e', 'T', 'y', 'p', 'e', 'A', 'n', 'n', 'o', 't', 'a', 't', 'i', 'o', 'n', 's' },
+        /* "AnnotationDefault" */ new byte[] { 'A', 'n', 'n', 'o', 't', 'a', 't', 'i', 'o', 'n', 'D', 'e', 'f', 'a', 'u', 'l', 't' },
+        /* "BootstrapMethods" */ new byte[] { 'B', 'o', 'o', 't', 's', 't', 'r', 'a', 'p', 'M', 'e', 't', 'h', 'o', 'd', 's' },
+        /* "MethodParameters" */ new byte[] { 'M', 'e', 't', 'h', 'o', 'd', 'P', 'a', 'r', 'a', 'm', 'e', 't', 'e', 'r', 's' },
+        /* "Module" */ new byte[] { 'M', 'o', 'd', 'u', 'l', 'e' },
+        /* "ModulePackages" */ new byte[] { 'M', 'o', 'd', 'u', 'l', 'e', 'P', 'a', 'c', 'k', 'a', 'g', 'e', 's' },
+        /* "ModuleMainClass" */ new byte[] { 'M', 'o', 'd', 'u', 'l', 'e', 'M', 'a', 'i', 'n', 'C', 'l', 'a', 's', 's' },
+        /* "NestHost" */ new byte[] { 'N', 'e', 's', 't', 'H', 'o', 's', 't' },
+        /* "NestMembers" */ new byte[] { 'N', 'e', 's', 't', 'M', 'e', 'm', 'b', 'e', 'r', 's' },
+        /* "Record" */ new byte[] { 'R', 'e', 'c', 'o', 'r', 'd' },
+        /* "PermittedSubclasses" */ new byte[] { 'P', 'e', 'r', 'm', 'i', 't', 't', 'e', 'd', 'S', 'u', 'b', 'c', 'l', 'a', 's', 's', 'e', 's' }
     };
 
     static final byte[][] NOT_TYPE = new byte[][] {
@@ -186,8 +186,8 @@ final class NamespacerTablesGenerated {
     };
 
     static final byte[][] NOT_GENERIC = new byte[][] {
-        /* "<clinit>" */ new byte[] { '<', 'c', 'l', 'i', 'n', 'i', 't', '>'},
-        /* "<init>" */ new byte[] { '<', 'i', 'n', 'i', 't', '>'}
+        /* "<clinit>" */ new byte[] { '<', 'c', 'l', 'i', 'n', 'i', 't', '>' },
+        /* "<init>" */ new byte[] { '<', 'i', 'n', 'i', 't', '>' }
     };
 
     private NamespacerTablesGenerated() {}

@@ -268,7 +268,7 @@ public final class NamespacerTablesGenerator {
       stringBuilder.append('\'').append(assertAsciiPrintable((char) ascii[i])).append('\'');
     }
 
-    stringBuilder.append('}');
+    stringBuilder.append(" }");
   }
 
   private NamespacerTablesGenerator() {}

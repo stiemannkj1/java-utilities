@@ -672,7 +672,7 @@ final class NamespacerTests {
     final ObjectPool objectPool = new ObjectPool();
 
     assertNull(
-        Namespacer.namespace(
+        Namespacer.namespaceClassFile(
             objectPool,
             classNameToPath(Before.class),
             classFileBefore,
@@ -712,7 +712,7 @@ final class NamespacerTests {
 
   @MethodSource("descriptorsShorterAfter")
   @ParameterizedTest
-  void it_namespaces_all_descriptors_with_shorter_namespace(
+  void it_namespaces_all_descriptors_with_shorter_namespaceClassFile(
       final String expected, final String namespaced) {
     assertEquals(expected, namespaced);
   }
@@ -736,7 +736,7 @@ final class NamespacerTests {
 
   @MethodSource("descriptorsLongerAfter")
   @ParameterizedTest
-  void it_namespaces_all_descriptors_with_longer_namespace(
+  void it_namespaces_all_descriptors_with_longer_namespaceClassFile(
       final String expected, final String namespaced) {
     assertEquals(expected, namespaced);
   }
@@ -758,7 +758,7 @@ final class NamespacerTests {
 
   @MethodSource("descriptorsSameSize")
   @ParameterizedTest
-  void it_namespaces_all_descriptors_with_same_size_namespace(
+  void it_namespaces_all_descriptors_with_same_size_namespaceClassFile(
       final String expected, final String namespaced) {
     assertEquals(expected, namespaced);
   }
@@ -804,7 +804,7 @@ final class NamespacerTests {
           classFileBefore,
           classAsStream(ConcreteGenericClassToNamespace.ThrowableToNamespace.class));
       assertNull(
-          Namespacer.namespace(
+          Namespacer.namespaceClassFile(
               objectPool,
               classNameToPath(ClassToNamespace.class),
               classFileBefore,
@@ -818,7 +818,7 @@ final class NamespacerTests {
       GrowableByteArray.clear(classFileAfter);
       GrowableByteArray.readFully(classFileBefore, classAsStream(ClassToNamespace.class));
       assertNull(
-          Namespacer.namespace(
+          Namespacer.namespaceClassFile(
               objectPool,
               classNameToPath(ClassToNamespace.class),
               classFileBefore,
@@ -837,7 +837,7 @@ final class NamespacerTests {
       GrowableByteArray.clear(classFileAfter);
       GrowableByteArray.readFully(classFileBefore, classAsStream(NestedGeneric.class));
       assertNull(
-          Namespacer.namespace(
+          Namespacer.namespaceClassFile(
               objectPool,
               classNameToPath(AbstractGenericClassToNamespace.class),
               classFileBefore,
@@ -856,7 +856,7 @@ final class NamespacerTests {
       GrowableByteArray.readFully(
           classFileBefore, classAsStream(AbstractGenericClassToNamespace.class));
       assertNull(
-          Namespacer.namespace(
+          Namespacer.namespaceClassFile(
               objectPool,
               classNameToPath(AbstractGenericClassToNamespace.class),
               classFileBefore,
@@ -872,7 +872,7 @@ final class NamespacerTests {
       GrowableByteArray.readFully(
           classFileBefore, classAsStream(ConcreteGenericClassToNamespace.Nested.class));
       assertNull(
-          Namespacer.namespace(
+          Namespacer.namespaceClassFile(
               objectPool,
               classNameToPath(ClassToNamespace.class),
               classFileBefore,
@@ -887,7 +887,7 @@ final class NamespacerTests {
       GrowableByteArray.readFully(
           classFileBefore, classAsStream(ConcreteGenericClassToNamespace.class));
       assertNull(
-          Namespacer.namespace(
+          Namespacer.namespaceClassFile(
               objectPool,
               classNameToPath(ConcreteGenericClassToNamespace.class),
               classFileBefore,

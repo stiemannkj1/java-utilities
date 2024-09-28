@@ -93,6 +93,7 @@ public final class NamespacerMain {
     }
 
     if (error != null) {
+      final boolean ignored = outputJar.delete();
       throw error;
     }
 
@@ -128,15 +129,22 @@ public final class NamespacerMain {
             objectPool.errors.add(
                 objectPool
                     .resetStringBuilder()
-                    .append("Duplicate file found ")
+                    .append("Duplicate file ")
                     .append(name)
+                    .append(" found in ")
+                    .append(jarToNamespace.getAbsolutePath())
+                    .append(". Exclude the file or override it in the current project.")
                     .toString());
           }
           continue;
         }
 
+        boolean serviceFile = false;
+
         for (int i = 0; i < objectPool.namespacer.replacements.paths; i++) {
 
+          // specify if service file here
+          // serviceFile = true;
           if (name.startsWith(objectPool.namespacer.replacements.beforePath[i])) {
             name =
                 objectPool
@@ -161,6 +169,15 @@ public final class NamespacerMain {
           continue;
         }
 
+        if (serviceFile) {
+          Namespacer.namespaceServiceFile(
+              objectPool.namespacer,
+              objectPool.classFileBefore,
+              replacementsMap,
+              objectPool.classFileAfter);
+          continue;
+        }
+
         if (!name.endsWith(".class")) {
 
           // TODO handle service files
@@ -173,6 +190,8 @@ public final class NamespacerMain {
               > -1) {
             jarOutputStream.write(objectPool.buffer, 0, read);
           }
+
+          continue;
         }
 
         GrowableByteArray.clear(objectPool.classFileBefore);
@@ -180,7 +199,7 @@ public final class NamespacerMain {
         GrowableByteArray.readFully(objectPool.classFileBefore, jarInputStream);
 
         final String result =
-            Namespacer.namespace(
+            Namespacer.namespaceClassFile(
                 objectPool.namespacer,
                 zipEntryToRead.getName(),
                 objectPool.classFileBefore,

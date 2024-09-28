@@ -76,7 +76,7 @@ public final class Namespacer {
   // TODO add fuzzer tests where constant is random values and constant length is invalid and
   // constant is not value UTF8
   // TODO create override that throws exception (IOException?).
-  public static String namespace(
+  public static String namespaceClassFile(
       final ObjectPool objectPool,
       final String fileName,
       final GrowableByteArray classFileBefore,
@@ -626,6 +626,8 @@ public final class Namespacer {
       int size = 1;
 
       if ((0b11110000 & currentChar) == 0b11110000) {
+        // TODO Class files use modified UTF-8 and therefore don't support 4-byte values. Add tests
+        // with 2, 3, and 4 byte values and fix this code to support modified UTF-8.
         size = 4;
       } else if ((0b11100000 & currentChar) == 0b11100000) {
         size = 3;
@@ -986,7 +988,77 @@ public final class Namespacer {
     }
   }
 
+  public static void namespaceServiceFile(
+      final ObjectPool objectPool,
+      final GrowableByteArray serviceFileBefore,
+      final Map<String, String> replacementsMap,
+      final GrowableByteArray serviceFileAfter) {
+
+    final ByteParser parser = objectPool.byteParser;
+    ByteParser.reset(objectPool.byteParser, serviceFileBefore);
+    Replacements.reset(objectPool.replacements, replacementsMap);
+
+    // ServiceLoader requires service files to be UTF-8 encoded.
+    // https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/ServiceLoader.html
+
+    int start = 0;
+
+    for (; parser.currentIndex < parser.maxIndexExclusive; parser.currentIndex++) {
+
+      byte current = GrowableByteArray.get(parser.bytes, parser.currentIndex);
+
+      switch (current) {
+          // Consume all whitespace and comments:
+        case ' ':
+          // fallthrough;
+        case '\t':
+          // fallthrough;
+        case '\n':
+          break;
+        case '#':
+          ByteParser.consumeUntil(parser, '\n');
+          break;
+        default:
+          GrowableByteArray.appendBytes(parser.bytes, start, serviceFileAfter, parser.currentIndex);
+          start = parser.currentIndex;
+          boolean replaced = false;
+
+          // TODO only check for class names. Currently this checks against all replacement values
+          // which includes files paths.
+          namespaceServiceClassNames:
+          for (int i = 0; i < objectPool.replacements.length; i++) {
+
+            for (int j = 0; j < objectPool.replacements.before[i].length; j++) {
+
+              if (!ByteParser.currentMatches(parser, objectPool.replacements.before[i][j])) {
+                continue namespaceServiceClassNames;
+              }
+            }
+
+            GrowableByteArray.appendBytes(
+                objectPool.replacements.after[i],
+                0,
+                serviceFileAfter,
+                objectPool.replacements.after[i].length);
+            parser.currentIndex += objectPool.replacements.before[i].length;
+            start = parser.currentIndex;
+            replaced = true;
+          }
+
+          if (!replaced) {
+            ByteParser.consumeUntil(parser, '\n');
+          }
+
+          break;
+      }
+    }
+
+    GrowableByteArray.appendBytes(parser.bytes, start, serviceFileAfter, parser.currentIndex);
+    return;
+  }
+
   // TODO switch to using a trie/prefix tree under the hood
+  // TODO support modified UTF-8 required by the spec
   static final class Replacements {
 
     private static final Replacements EMPTY = new Replacements();
@@ -1249,7 +1321,7 @@ public final class Namespacer {
 
     private static int consumeUntil(final ByteParser parser, final char expected) {
 
-      byte current = GrowableByteArray.get(parser.bytes, parser.currentIndex);
+      byte current = -1;
 
       for (;
           current != expected && parser.currentIndex < parser.maxIndexExclusive;
