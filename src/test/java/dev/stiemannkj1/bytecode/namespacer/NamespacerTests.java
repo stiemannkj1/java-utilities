@@ -153,7 +153,8 @@ final class NamespacerTests {
           "([[[I[[[Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;[[[I)[[[I",
           "([[[J[[[Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;[[[J)[[[J",
           "([[[S[[[Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;[[[S)[[[S",
-          "([[[Z[[[Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;[[[Z)[[[Z");
+          "([[[Z[[[Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;[[[Z)[[[Z",
+          "<T:Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;>Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>;");
     }
   }
 
@@ -276,7 +277,8 @@ final class NamespacerTests {
           "([[[I[[[Lnow/im/namespaced/NamespacerTests$ClassToNamespace;[[[I)[[[I",
           "([[[J[[[Lnow/im/namespaced/NamespacerTests$ClassToNamespace;[[[J)[[[J",
           "([[[S[[[Lnow/im/namespaced/NamespacerTests$ClassToNamespace;[[[S)[[[S",
-          "([[[Z[[[Lnow/im/namespaced/NamespacerTests$ClassToNamespace;[[[Z)[[[Z");
+          "([[[Z[[[Lnow/im/namespaced/NamespacerTests$ClassToNamespace;[[[Z)[[[Z",
+          "<T:Lnow/im/namespaced/NamespacerTests$ClassToNamespace<TT;>;>Lnow/im/namespaced/NamespacerTests$ClassToNamespace;Lnow/im/namespaced/NamespacerTests$ClassToNamespace<TT;>;Lnow/im/namespaced/NamespacerTests$ClassToNamespace<Lnow/im/namespaced/NamespacerTests$ClassToNamespace;>;Lnow/im/namespaced/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Lnow/im/namespaced/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>;");
     }
   }
 
@@ -399,7 +401,8 @@ final class NamespacerTests {
           "([[[I[[[Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;[[[I)[[[I",
           "([[[J[[[Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;[[[J)[[[J",
           "([[[S[[[Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;[[[S)[[[S",
-          "([[[Z[[[Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;[[[Z)[[[Z");
+          "([[[Z[[[Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;[[[Z)[[[Z",
+          "<T:Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace<TT;>;>Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace<TT;>;Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace<Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;>;Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>;");
     }
   }
 
@@ -522,7 +525,8 @@ final class NamespacerTests {
           "([[[I[[[Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;[[[I)[[[I",
           "([[[J[[[Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;[[[J)[[[J",
           "([[[S[[[Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;[[[S)[[[S",
-          "([[[Z[[[Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;[[[Z)[[[Z");
+          "([[[Z[[[Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;[[[Z)[[[Z",
+          "<T:Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace<TT;>;>Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace<TT;>;Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace<Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;>;Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>;");
     }
   }
 
@@ -645,7 +649,8 @@ final class NamespacerTests {
           "([[[I[[[Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;[[[I)[[[I",
           "([[[J[[[Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;[[[J)[[[J",
           "([[[S[[[Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;[[[S)[[[S",
-          "([[[Z[[[Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;[[[Z)[[[Z");
+          "([[[Z[[[Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;[[[Z)[[[Z",
+          "<T:Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;>Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>;");
     }
   }
 

@@ -64,7 +64,7 @@ public final class NamespacerMainTests {
 
     final File namespacedJar = new File(tempDir, "namespaced.jar");
     NamespacerMain.namespaceJars(
-        Arrays.asList(jar1File, jar2File), replacements, namespacedJar, 1 << 10);
+        true, Arrays.asList(jar1File, jar2File), replacements, namespacedJar, 1 << 10);
 
     final class ExpectedEntry {
       private final String name;

@@ -24,13 +24,13 @@ import java.util.zip.ZipOutputStream;
 public final class NamespacerMain {
 
   private static final class ObjectPool extends WithReusableStringBuilder {
-    private Boolean first = Boolean.TRUE;
+    private Boolean allowOverrides = Boolean.TRUE;
     private byte[] buffer = new byte[1 << 14];
     private Map<String, Boolean> processedFiles = new HashMap<>(1 << 8);
     private Namespacer.ObjectPool namespacer;
     private GrowableByteArray classFileBefore;
     private GrowableByteArray classFileAfter;
-    private List<String> errors = new ArrayList<String>();
+    private List<String> errors = new ArrayList<>();
 
     public ObjectPool(
         final Namespacer.ObjectPool namespacer,
@@ -43,11 +43,14 @@ public final class NamespacerMain {
   }
 
   public static void namespaceJars(
+      final boolean firstJarOverrides,
       final List<File> jarsToNamespace,
       final Map<String, String> replacementsMap,
       final File outputJar,
       final int initialClassFileBufferCapacity)
       throws IOException {
+
+    // TODO add option to fail task if the buffer has to grow since it'll slow things down.
 
     final File outputJarParent = outputJar.getParentFile();
     final File partialJar = new File(outputJarParent, outputJar.getName() + ".PART.zip");
@@ -56,6 +59,11 @@ public final class NamespacerMain {
             new Namespacer.ObjectPool(replacementsMap),
             new GrowableByteArray(initialClassFileBufferCapacity),
             new GrowableByteArray(initialClassFileBufferCapacity));
+
+    if (!firstJarOverrides) {
+      objectPool.allowOverrides = Boolean.FALSE;
+    }
+
     IOException error = null;
 
     try (final OutputStream outputStream =
@@ -69,7 +77,7 @@ public final class NamespacerMain {
 
       for (final File jarToNamespace : jarsToNamespace) {
         namespaceJar(objectPool, replacementsMap, jarToNamespace, jarOutputStream);
-        objectPool.first = Boolean.FALSE;
+        objectPool.allowOverrides = Boolean.FALSE;
       }
     } catch (final IOException e) {
       error = e;
@@ -122,7 +130,7 @@ public final class NamespacerMain {
         // Ignore duplicates if they duplicate files in the first JAR so that callers can handle
         // duplicates by overriding them from their own JAR.
         final Boolean fileWasOverridden =
-            objectPool.processedFiles.putIfAbsent(name, assertNotNull(objectPool.first));
+            objectPool.processedFiles.putIfAbsent(name, assertNotNull(objectPool.allowOverrides));
 
         if (fileWasOverridden != null) {
           if (fileWasOverridden == Boolean.FALSE) {
@@ -198,13 +206,19 @@ public final class NamespacerMain {
         GrowableByteArray.clear(objectPool.classFileAfter);
         GrowableByteArray.readFully(objectPool.classFileBefore, jarInputStream);
 
-        final String result =
-            Namespacer.namespaceClassFile(
-                objectPool.namespacer,
-                zipEntryToRead.getName(),
-                objectPool.classFileBefore,
-                replacementsMap,
-                objectPool.classFileAfter);
+        final String result;
+
+        try {
+          result =
+              Namespacer.namespaceClassFile(
+                  objectPool.namespacer,
+                  zipEntryToRead.getName(),
+                  objectPool.classFileBefore,
+                  replacementsMap,
+                  objectPool.classFileAfter);
+        } catch (final Throwable t) {
+          throw new AssertionError("Failed to namespace class: " + zipEntryToRead.getName(), t);
+        }
 
         if (result != null) {
           objectPool.errors.add(result);

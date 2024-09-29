@@ -134,8 +134,8 @@ public final class GrowableArrays {
       while ((read =
               inputStream.read(
                   GrowableByteArray.bytes(array),
-                  read,
-                  GrowableByteArray.bytes(array).length - read))
+                  array.size,
+                  GrowableByteArray.bytes(array).length - array.size))
           > -1) {
 
         array.size += read;

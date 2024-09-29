@@ -162,14 +162,12 @@ public final class Namespacer {
         return truncatedClassFileErrorMessage(objectPool, fileName, parser, "cp_info_tag");
       }
 
-      final short cp_info_tag = (short) cp_info_tag_ref.value;
-
       final ConstantPoolTag tag;
 
-      if (cp_info_tag > ConstantPoolTag.VALUES.length) {
+      if (cp_info_tag_ref.value > ConstantPoolTag.VALUES.length) {
         tag = ConstantPoolTag.CONSTANT_Unused_2;
       } else {
-        tag = ConstantPoolTag.VALUES[cp_info_tag];
+        tag = ConstantPoolTag.VALUES[(int) cp_info_tag_ref.value];
       }
 
       final int length = consumeCpInfoLength(parser, tag, objectPool.i8Ref);
@@ -179,7 +177,7 @@ public final class Namespacer {
             .append("Invalid class file for ")
             .append(fileName)
             .append(". Unexpected constant tag of ")
-            .append(cp_info_tag)
+            .append(cp_info_tag_ref.value)
             .append(" found at constant_pool[")
             .append(i)
             .append("], byte index: ")
@@ -448,6 +446,9 @@ public final class Namespacer {
       return null;
     }
 
+    // TODO if we haven't consumed the whole constant at this point we also need to return NOT_SIG.
+    // TODO test and handle interfaces.
+
     final int lengthAfter =
         GrowableByteArray.size(classFileAfter)
             - constant.startIndexAfter
@@ -615,7 +616,7 @@ public final class Namespacer {
       GrowableByteArray.appendBytes(
           replacements.after[i], 0, classFileAfter, replacements.after[i].length);
       break;
-    }
+    } // TODO skip the following logic when no replacement occurred
 
     final int indexAfterReplacement = parser.currentIndex;
 
