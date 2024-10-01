@@ -76,6 +76,7 @@ public final class Namespacer {
   // TODO add fuzzer tests where constant is random values and constant length is invalid and
   // constant is not value UTF8
   // TODO create override that throws exception (IOException?).
+  @SuppressWarnings("DuplicateBranchesInSwitch")
   public static String namespaceClassFile(
       final ObjectPool objectPool,
       final String fileName,
@@ -143,11 +144,11 @@ public final class Namespacer {
       return truncatedClassFileErrorMessage(objectPool, fileName, parser, "constant_pool_count");
     }
 
-    final int constant_pool_count = ((int) constant_pool_count_ref.value) - 1;
+    final int constant_pool_count = (int) constant_pool_count_ref.value;
     GrowableByteArray.copyBytes(classFileBefore, 0, classFileAfter, 0, parser.currentIndex);
     Utf8ConstantInfo utf8ConstantInfo = objectPool.utf8ConstantInfo;
 
-    for (int i = 0; i < constant_pool_count; i++) {
+    for (int i = 1; i < constant_pool_count; i++) {
 
       if (size(parser.bytes) <= parser.currentIndex) {
         break;
@@ -170,7 +171,79 @@ public final class Namespacer {
         tag = ConstantPoolTag.VALUES[(int) cp_info_tag_ref.value];
       }
 
-      final int length = consumeCpInfoLength(parser, tag, objectPool.i8Ref);
+      int length;
+
+      switch (tag) {
+        case CONSTANT_Utf8:
+          final LongRef lengthRef =
+              ByteParser.consumeOptionalUnsignedBytes(
+                  parser, Utf8ConstantInfo.LENGTH_BYTES, objectPool.i8Ref);
+          length = lengthRef != null ? (int) lengthRef.value : -1;
+          break;
+        case CONSTANT_Long:
+          // fallthrough;
+        case CONSTANT_Double:
+          // https://docs.oracle.com/javase/specs/jvms/se22/html/jvms-4.html#jvms-4.4.5
+          // "All 8-byte constants take up two entries in the constant_pool table of the class
+          // file....
+          // In retrospect, making 8-byte constants take two constant pool entries was a
+          // poor choice."
+          i++;
+          length = 8;
+          break;
+        case CONSTANT_Integer:
+          length = 4;
+          break;
+        case CONSTANT_Float:
+          length = 4;
+          break;
+        case CONSTANT_Class:
+          length = 2;
+          break;
+        case CONSTANT_String:
+          length = 2;
+          break;
+        case CONSTANT_Fieldref:
+          length = 4;
+          break;
+        case CONSTANT_Methodref:
+          length = 4;
+          break;
+        case CONSTANT_InterfaceMethodref:
+          length = 4;
+          break;
+        case CONSTANT_NameAndType:
+          length = 4;
+          break;
+        case CONSTANT_MethodHandle:
+          length = 3;
+          break;
+        case CONSTANT_MethodType:
+          length = 2;
+          break;
+        case CONSTANT_Dynamic:
+          length = 4;
+          break;
+        case CONSTANT_InvokeDynamic:
+          length = 4;
+          break;
+        case CONSTANT_Module:
+          length = 2;
+          break;
+        case CONSTANT_Package:
+          length = 2;
+          break;
+        case CONSTANT_Unused_0:
+          // fallthrough;
+        case CONSTANT_Unused_2:
+          // fallthrough;
+        case CONSTANT_Unused_13:
+          // fallthrough;
+        case CONSTANT_Unused_14:
+          // fallthrough;
+        default:
+          length = -1;
+      }
 
       if (length < 0) {
         return ObjectPool.errorMessageBuilder(objectPool)
@@ -205,12 +278,7 @@ public final class Namespacer {
       }
 
       Utf8ConstantInfo.reset(
-          utf8ConstantInfo,
-          i,
-          constantStartIndex,
-          length,
-          GrowableByteArray.size(classFileAfter),
-          GrowableByteArray.bytes(classFileBefore));
+          utf8ConstantInfo, i, constantStartIndex, length, GrowableByteArray.size(classFileAfter));
 
       parser.maxIndexExclusive =
           utf8ConstantInfo.utf8StartIndexBefore + utf8ConstantInfo.utf8LengthBefore;
@@ -293,9 +361,6 @@ public final class Namespacer {
     private int utf8LengthBefore;
     private int startIndexAfter;
 
-    @SuppressWarnings("unused")
-    private String valueBeforeForDebugging;
-
     private Utf8ConstantInfo() {}
 
     private static void reset(
@@ -303,23 +368,28 @@ public final class Namespacer {
         final int constantPoolIndex,
         final int startIndexBefore,
         final int lengthBefore,
-        final int startIndexAfter,
-        final byte[] classFile) {
+        final int startIndexAfter) {
       constant.constantPoolIndex = constantPoolIndex;
       constant.startIndexBefore = startIndexBefore;
       constant.utf8StartIndexBefore = HEADER_BYTES + constant.startIndexBefore;
       constant.utf8LengthBefore = lengthBefore;
       constant.lengthBefore = HEADER_BYTES + lengthBefore;
       constant.startIndexAfter = startIndexAfter;
+    }
 
-      if (ASSERT_ENABLED) {
-        constant.valueBeforeForDebugging =
-            new String(
-                classFile,
-                constant.utf8StartIndexBefore,
-                constant.utf8LengthBefore,
-                StandardCharsets.UTF_8);
+    @SuppressWarnings("unused")
+    public static String valueBeforeForDebugging(
+        final Utf8ConstantInfo constant, final GrowableByteArray classFileBefore) {
+
+      if (constant.lengthBefore <= 0) {
+        return "";
       }
+
+      return new String(
+          GrowableByteArray.bytes(classFileBefore),
+          constant.utf8StartIndexBefore,
+          constant.utf8LengthBefore,
+          StandardCharsets.UTF_8);
     }
 
     @SuppressWarnings("unused")
@@ -397,7 +467,7 @@ public final class Namespacer {
         result = NOT_SIGNATURE;
       } else {
         result =
-            namespaceTypeSignature(
+            namespaceMultiTypeSignature(
                 objectPool, fileName, parser, constant, replacements, classFileAfter);
       }
 
@@ -432,6 +502,10 @@ public final class Namespacer {
         }
       }
     } else {
+      result = NOT_SIGNATURE;
+    }
+
+    if (parser.currentIndex != parser.maxIndexExclusive) {
       result = NOT_SIGNATURE;
     }
 
@@ -851,6 +925,10 @@ public final class Namespacer {
       final int length = end - start;
       GrowableByteArray.appendBytes(parser.bytes, start, classFileAfter, length);
 
+      if (ByteParser.consumeOptional(parser, ':')) {
+        GrowableByteArray.append(classFileAfter, ':');
+      }
+
       final String result =
           namespaceTypeSignature(
               objectPool, fileName, parser, constant, replacements, classFileAfter);
@@ -875,7 +953,7 @@ public final class Namespacer {
     }
 
     final byte current = GrowableByteArray.get(parser.bytes, parser.currentIndex);
-    final String result;
+    String result;
 
     switch (current) {
       case '(':
@@ -885,7 +963,7 @@ public final class Namespacer {
         break;
       case 'L':
         result =
-            namespaceTypeSignature(
+            namespaceMultiTypeSignature(
                 objectPool, fileName, parser, constant, replacements, classFileAfter);
         break;
       default:
@@ -895,63 +973,28 @@ public final class Namespacer {
     return result;
   }
 
-  private static int consumeCpInfoLength(
-      final ByteParser parser, final ConstantPoolTag tag, final LongRef u8LongRef) {
+  private static String namespaceMultiTypeSignature(
+      final ObjectPool objectPool,
+      final String fileName,
+      final ByteParser parser,
+      final Utf8ConstantInfo constant,
+      final Replacements replacements,
+      final GrowableByteArray classFileAfter) {
 
-    switch (tag) {
-      case CONSTANT_Utf8:
-        final LongRef length =
-            ByteParser.consumeOptionalUnsignedBytes(
-                parser, Utf8ConstantInfo.LENGTH_BYTES, u8LongRef);
+    // Multiple types are allowed when the signature represents a type's inheritance hierarchy
+    // (since a class can implement multiple interfaces).
+    while (parser.currentIndex != parser.maxIndexExclusive) {
 
-        if (length == null) {
-          return -1;
-        }
+      final String result =
+          namespaceTypeSignature(
+              objectPool, fileName, parser, constant, replacements, classFileAfter);
 
-        return (int) length.value;
-      case CONSTANT_Integer:
-        return 4;
-      case CONSTANT_Float:
-        return 4;
-      case CONSTANT_Long:
-        return 8;
-      case CONSTANT_Double:
-        return 8;
-      case CONSTANT_Class:
-        return 2;
-      case CONSTANT_String:
-        return 2;
-      case CONSTANT_Fieldref:
-        return 4;
-      case CONSTANT_Methodref:
-        return 4;
-      case CONSTANT_InterfaceMethodref:
-        return 4;
-      case CONSTANT_NameAndType:
-        return 4;
-      case CONSTANT_MethodHandle:
-        return 3;
-      case CONSTANT_MethodType:
-        return 2;
-      case CONSTANT_Dynamic:
-        return 4;
-      case CONSTANT_InvokeDynamic:
-        return 4;
-      case CONSTANT_Module:
-        return 2;
-      case CONSTANT_Package:
-        return 2;
-      case CONSTANT_Unused_0:
-        // fallthrough;
-      case CONSTANT_Unused_2:
-        // fallthrough;
-      case CONSTANT_Unused_13:
-        // fallthrough;
-      case CONSTANT_Unused_14:
-        // fallthrough;
-      default:
-        return -1;
+      if (result != null) {
+        return result;
+      }
     }
+
+    return null;
   }
 
   private enum ConstantPoolTag {
@@ -1055,7 +1098,6 @@ public final class Namespacer {
     }
 
     GrowableByteArray.appendBytes(parser.bytes, start, serviceFileAfter, parser.currentIndex);
-    return;
   }
 
   // TODO switch to using a trie/prefix tree under the hood

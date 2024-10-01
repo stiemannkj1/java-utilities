@@ -4,6 +4,9 @@ import static dev.stiemannkj1.bytecode.ClassGenerator.ClassUtil.classAsStream;
 import static dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray.bytes;
 import static dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray.size;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -11,11 +14,13 @@ import dev.stiemannkj1.bytecode.ClassGenerator;
 import dev.stiemannkj1.bytecode.namespacer.Namespacer.ObjectPool;
 import dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -154,6 +159,12 @@ final class NamespacerTests {
           "([[[J[[[Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;[[[J)[[[J",
           "([[[S[[[Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;[[[S)[[[S",
           "([[[Z[[[Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;[[[Z)[[[Z",
+          "Ljava/lang/Object;Ljava/lang/Runnable;Ljava/util/concurrent/Callable<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$InterfaceToNamespace;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$InterfaceToNamespace;",
+          "<K::Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$InterfaceToNamespace;V::Ljava/lang/Runnable;:Ljava/util/concurrent/Callable<+Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$InterfaceToNamespace;>;:Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$InterfaceToNamespace;>(Ljava/util/Map<TK;[TV;>;)Ljava/util/Map<TK;[TV;>;",
+          "<T:Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$NestedGeneric<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;:Ljava/lang/Runnable;>Ljava/lang/Object;",
+          "<T:Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;:Ljava/lang/Runnable;>(BSIJFDCZTT;BSIJFDCZ)V",
+          "<T:Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;>Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>; ",
+          "Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>;",
           "<T:Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;>Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>;");
     }
   }
@@ -278,6 +289,12 @@ final class NamespacerTests {
           "([[[J[[[Lnow/im/namespaced/NamespacerTests$ClassToNamespace;[[[J)[[[J",
           "([[[S[[[Lnow/im/namespaced/NamespacerTests$ClassToNamespace;[[[S)[[[S",
           "([[[Z[[[Lnow/im/namespaced/NamespacerTests$ClassToNamespace;[[[Z)[[[Z",
+          "Ljava/lang/Object;Ljava/lang/Runnable;Ljava/util/concurrent/Callable<Lnow/im/namespaced/NamespacerTests$InterfaceToNamespace;>;Lnow/im/namespaced/NamespacerTests$InterfaceToNamespace;",
+          "<K::Lnow/im/namespaced/NamespacerTests$InterfaceToNamespace;V::Ljava/lang/Runnable;:Ljava/util/concurrent/Callable<+Lnow/im/namespaced/NamespacerTests$InterfaceToNamespace;>;:Lnow/im/namespaced/NamespacerTests$InterfaceToNamespace;>(Ljava/util/Map<TK;[TV;>;)Ljava/util/Map<TK;[TV;>;",
+          "<T:Lnow/im/namespaced/NamespacerTests$NestedGeneric<Lnow/im/namespaced/NamespacerTests$ClassToNamespace;>;:Ljava/lang/Runnable;>Ljava/lang/Object;",
+          "<T:Lnow/im/namespaced/NamespacerTests$ClassToNamespace;:Ljava/lang/Runnable;>(BSIJFDCZTT;BSIJFDCZ)V",
+          "<T:Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;>Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>; ",
+          "Lnow/im/namespaced/NamespacerTests$ClassToNamespace;Lnow/im/namespaced/NamespacerTests$ClassToNamespace<TT;>;Lnow/im/namespaced/NamespacerTests$ClassToNamespace<Lnow/im/namespaced/NamespacerTests$ClassToNamespace;>;Lnow/im/namespaced/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Lnow/im/namespaced/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>;",
           "<T:Lnow/im/namespaced/NamespacerTests$ClassToNamespace<TT;>;>Lnow/im/namespaced/NamespacerTests$ClassToNamespace;Lnow/im/namespaced/NamespacerTests$ClassToNamespace<TT;>;Lnow/im/namespaced/NamespacerTests$ClassToNamespace<Lnow/im/namespaced/NamespacerTests$ClassToNamespace;>;Lnow/im/namespaced/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Lnow/im/namespaced/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>;");
     }
   }
@@ -402,6 +419,12 @@ final class NamespacerTests {
           "([[[J[[[Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;[[[J)[[[J",
           "([[[S[[[Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;[[[S)[[[S",
           "([[[Z[[[Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;[[[Z)[[[Z",
+          "Ljava/lang/Object;Ljava/lang/Runnable;Ljava/util/concurrent/Callable<Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$InterfaceToNamespace;>;Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$InterfaceToNamespace;",
+          "<K::Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$InterfaceToNamespace;V::Ljava/lang/Runnable;:Ljava/util/concurrent/Callable<+Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$InterfaceToNamespace;>;:Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$InterfaceToNamespace;>(Ljava/util/Map<TK;[TV;>;)Ljava/util/Map<TK;[TV;>;",
+          "<T:Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$NestedGeneric<Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;>;:Ljava/lang/Runnable;>Ljava/lang/Object;",
+          "<T:Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;:Ljava/lang/Runnable;>(BSIJFDCZTT;BSIJFDCZ)V",
+          "<T:Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;>Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>; ",
+          "Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace<TT;>;Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace<Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;>;Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>;",
           "<T:Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace<TT;>;>Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace<TT;>;Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace<Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;>;Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Lnow/im/namespaced/and/much/much/much/much/much/much/much/much/longer/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>;");
     }
   }
@@ -526,6 +549,12 @@ final class NamespacerTests {
           "([[[J[[[Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;[[[J)[[[J",
           "([[[S[[[Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;[[[S)[[[S",
           "([[[Z[[[Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;[[[Z)[[[Z",
+          "Ljava/lang/Object;Ljava/lang/Runnable;Ljava/util/concurrent/Callable<Lnow/im/namespaced/same/size12345678/NamespacerTests$InterfaceToNamespace;>;Lnow/im/namespaced/same/size12345678/NamespacerTests$InterfaceToNamespace;",
+          "<K::Lnow/im/namespaced/same/size12345678/NamespacerTests$InterfaceToNamespace;V::Ljava/lang/Runnable;:Ljava/util/concurrent/Callable<+Lnow/im/namespaced/same/size12345678/NamespacerTests$InterfaceToNamespace;>;:Lnow/im/namespaced/same/size12345678/NamespacerTests$InterfaceToNamespace;>(Ljava/util/Map<TK;[TV;>;)Ljava/util/Map<TK;[TV;>;",
+          "<T:Lnow/im/namespaced/same/size12345678/NamespacerTests$NestedGeneric<Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;>;:Ljava/lang/Runnable;>Ljava/lang/Object;",
+          "<T:Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;:Ljava/lang/Runnable;>(BSIJFDCZTT;BSIJFDCZ)V",
+          "<T:Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;>Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>; ",
+          "Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace<TT;>;Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace<Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;>;Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>;",
           "<T:Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace<TT;>;>Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace<TT;>;Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace<Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;>;Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Lnow/im/namespaced/same/size12345678/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>;");
     }
   }
@@ -650,6 +679,12 @@ final class NamespacerTests {
           "([[[J[[[Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;[[[J)[[[J",
           "([[[S[[[Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;[[[S)[[[S",
           "([[[Z[[[Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;[[[Z)[[[Z",
+          "Ljava/lang/Object;Ljava/lang/Runnable;Ljava/util/concurrent/Callable<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$InterfaceToNamespace;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$InterfaceToNamespace;",
+          "<K::Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$InterfaceToNamespace;V::Ljava/lang/Runnable;:Ljava/util/concurrent/Callable<+Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$InterfaceToNamespace;>;:Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$InterfaceToNamespace;>(Ljava/util/Map<TK;[TV;>;)Ljava/util/Map<TK;[TV;>;",
+          "<T:Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$NestedGeneric<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;:Ljava/lang/Runnable;>Ljava/lang/Object;",
+          "<T:Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;:Ljava/lang/Runnable;>(BSIJFDCZTT;BSIJFDCZ)V",
+          "<T:Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;>Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>; ",
+          "Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>;",
           "<T:Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;>Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<TT;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace<Ljava/lang/String;>;Ljava/util/List<Ldev/stiemannkj1/bytecode/namespacer/NamespacerTests$ClassToNamespace;>;Ljava/util/List<Ljava/util/List<Ljava/langString;>;>;");
     }
   }
@@ -752,7 +787,7 @@ final class NamespacerTests {
         "dev.stiemannkj1.bytecode.namespacer.", "now.im.namespaced.same.size12345678.");
 
     for (final Map.Entry<String, String> entry : replacements.entrySet()) {
-      assertTrue(entry.getKey().length() == entry.getValue().length());
+      assertEquals(entry.getKey().length(), entry.getValue().length());
     }
 
     return descriptors(
@@ -812,6 +847,20 @@ final class NamespacerTests {
           Namespacer.namespaceClassFile(
               objectPool,
               classNameToPath(ClassToNamespace.class),
+              classFileBefore,
+              replacement,
+              classFileAfter));
+
+      classGenerator.generateClass(className, bytes(classFileAfter), 0, size(classFileAfter));
+
+      className = "now.im.namespaced.NamespacerTests$InterfaceToNamespace";
+      GrowableByteArray.clear(classFileBefore);
+      GrowableByteArray.clear(classFileAfter);
+      GrowableByteArray.readFully(classFileBefore, classAsStream(InterfaceToNamespace.class));
+      assertNull(
+          Namespacer.namespaceClassFile(
+              objectPool,
+              classNameToPath(InterfaceToNamespace.class),
               classFileBefore,
               replacement,
               classFileAfter));
@@ -880,6 +929,23 @@ final class NamespacerTests {
           Namespacer.namespaceClassFile(
               objectPool,
               classNameToPath(ClassToNamespace.class),
+              classFileBefore,
+              replacement,
+              classFileAfter));
+
+      classGenerator.generateClass(className, bytes(classFileAfter), 0, size(classFileAfter));
+
+      className = "now.im.namespaced.NamespacerTests$AbstractGenericClassToNamespace$1Foo";
+      final String originalClassName =
+          "dev.stiemannkj1.bytecode.namespacer.NamespacerTests$AbstractGenericClassToNamespace$1Foo";
+      GrowableByteArray.clear(classFileBefore);
+      GrowableByteArray.clear(classFileAfter);
+      GrowableByteArray.readFully(
+          classFileBefore, classAsStream(getClass().getClassLoader(), originalClassName));
+      assertNull(
+          Namespacer.namespaceClassFile(
+              objectPool,
+              classNameToPath(originalClassName),
               classFileBefore,
               replacement,
               classFileAfter));
@@ -970,14 +1036,32 @@ final class NamespacerTests {
       assertEquals(
           "now.im.namespaced.toString",
           invoke(namespacedClass, namespaced, "toString", new Class[] {}, new Object[] {}));
+      final Object map =
+          invoke(genericClass, null, "getMap", new Class[] {Map.class}, new Object[] {null});
+      assertNotNull(map);
+      assertInstanceOf(Map.class, map);
+      assertFalse(((Map<?, ?>) map).isEmpty());
+      assertNotNull(((Map<?, ?>) map).get("foo"));
+      assertTrue(((Map<?, ?>) map).get("foo").getClass().isArray());
+      assertNotNull(Array.get(((Map<?, ?>) map).get("foo"), 0));
+      assertEquals(
+          "now.im.namespaced.NamespacerTests$AbstractGenericClassToNamespace$1Foo",
+          Array.get(((Map<?, ?>) map).get("foo"), 0).getClass().getTypeName());
+      assertEquals(
+          map, invoke(genericClass, null, "getMap", new Class[] {Map.class}, new Object[] {map}));
+
     } catch (final Throwable t) {
       ClassGenerator.writeClassOnError(t, className, classFileAfter);
       throw t;
     }
   }
 
+  private static String classNameToPath(final String className) {
+    return className.replace('.', '/') + ".class";
+  }
+
   private static String classNameToPath(final Class<?> aClass) {
-    return aClass.getTypeName().replace('.', '/') + ".class";
+    return classNameToPath(aClass.getTypeName());
   }
 
   private static Object invoke(
@@ -996,6 +1080,9 @@ final class NamespacerTests {
   }
 
   @SuppressWarnings("unused")
+  public interface InterfaceToNamespace {}
+
+  @SuppressWarnings("unused")
   public static final class ClassToNamespace {
 
     public ClassToNamespace() {}
@@ -1007,15 +1094,44 @@ final class NamespacerTests {
   }
 
   @SuppressWarnings("unused")
-  public static final class NestedGeneric<T> {
+  public static final class NestedGeneric<T> implements Runnable {
     public T getValue() {
       return null;
     }
+
+    @Override
+    public void run() {}
   }
 
   @SuppressWarnings("unused")
   public abstract static class AbstractGenericClassToNamespace<
-      T extends NestedGeneric<ClassToNamespace>> {
+      T extends NestedGeneric<ClassToNamespace> & Runnable> {
+
+    public static <
+            K extends CharSequence,
+            V extends Runnable & Callable<? extends InterfaceToNamespace> & InterfaceToNamespace>
+        Map<K, V[]> getMap(Map<K, V[]> map) {
+
+      if (map != null) {
+        return map;
+      }
+
+      map = new HashMap<>();
+
+      final class Foo implements Runnable, Callable<InterfaceToNamespace>, InterfaceToNamespace {
+
+        @Override
+        public void run() {}
+
+        @Override
+        public InterfaceToNamespace call() {
+          return this;
+        }
+      }
+
+      map.put((K) "foo", (V[]) new Foo[] {new Foo()});
+      return map;
+    }
 
     public AbstractGenericClassToNamespace() {}
 
@@ -1041,7 +1157,7 @@ final class NamespacerTests {
     public abstract ClassToNamespace abstractReturnAndArg(final ClassToNamespace t);
   }
 
-  @SuppressWarnings("unused")
+  @SuppressWarnings({"unused", "RedundantThrows"})
   public static final class ConcreteGenericClassToNamespace
       extends AbstractGenericClassToNamespace<NestedGeneric<ClassToNamespace>> {
 
@@ -1064,7 +1180,7 @@ final class NamespacerTests {
 
     public static void wildcard(final List<?> list) {}
 
-    public static <T extends ClassToNamespace> void boundedGenericWithPrimitives(
+    public static <T extends ClassToNamespace & Runnable> void boundedGenericWithPrimitives(
         byte byte1,
         short short1,
         int int1,
@@ -1114,7 +1230,7 @@ final class NamespacerTests {
     @SuppressWarnings("unused")
     public static <T extends IOException> void throwingGeneric2() throws T, ThrowableToNamespace {}
 
-    @SuppressWarnings("unused")
+    @SuppressWarnings({"unused", "InnerClassMayBeStatic"})
     public final class Nested<T extends NestedGeneric<ClassToNamespace>> {
       public final class NestedNested<U extends T> {}
 

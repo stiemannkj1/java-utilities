@@ -123,7 +123,7 @@ public final class NamespacerMainTests {
       final ZipOutputStream jarOutputStream, final Class<?> aClass, final long timestampMs)
       throws IOException {
 
-    final ZipEntry zipEntry = new ZipEntry(toEntryPath(aClass));
+    final ZipEntry zipEntry = new ZipEntry(toEntryPath(aClass.getTypeName()));
     zipEntry.setTime(timestampMs);
     jarOutputStream.putNextEntry(zipEntry);
     jarOutputStream.write(readClassBytes(aClass));

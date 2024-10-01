@@ -19,11 +19,12 @@ dependencies {
 // TODO create an integration test that downloads and installs Gradle using gradlew and runs this task and then runs the JAR to prove that everything works.
 tasks.namespaceJars {
     doFirst {
+        // Only for testing.
         System.setProperty("dev.stiemannkj1.util.Assert.enabled", "true")
     }
     replacements = [
         "foo.": "im.namespaced.foo.",
-        "dev.stiemannkj1.": "im.namespaces.dev.stiemannkj1."
+        "dev.stiemannkj1.": "im.namespaced.dev.stiemannkj1."
     ]
     outputJar = file("$project.buildDir/libs/namespaced.jar")
 }

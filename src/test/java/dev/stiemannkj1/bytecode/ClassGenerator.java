@@ -50,12 +50,16 @@ public final class ClassGenerator extends ClassLoader {
 
   public static final class ClassUtil {
 
-    public static String toEntryPath(final Class<?> aClass) {
-      return aClass.getTypeName().replace(".", "/") + ".class";
+    public static String toEntryPath(final String className) {
+      return className.replace(".", "/") + ".class";
     }
 
     public static InputStream classAsStream(final Class<?> aClass) {
-      return assertNotNull(aClass.getClassLoader().getResourceAsStream(toEntryPath(aClass)));
+      return classAsStream(aClass.getClassLoader(), aClass.getTypeName());
+    }
+
+    public static InputStream classAsStream(final ClassLoader classLoader, final String className) {
+      return assertNotNull(classLoader.getResourceAsStream(toEntryPath(className)));
     }
 
     public static byte[] readClassBytes(final Class<?> aClass) throws IOException {
