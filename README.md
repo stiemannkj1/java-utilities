@@ -63,3 +63,9 @@ gradle check
 ## License
 
 [Apache License Version 2.0](./LICENSE.txt)
+
+Gradle source and binaries are included for compilation and testing under the
+terms in [.gradle/gradle/LICENSE](.gradle/gradle/LICENSE).
+
+Maven source and binaries are included for compilation and testing under the
+terms in [.maven/maven/LICENSE](.maven/maven/LICENSE).

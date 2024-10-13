@@ -1,6 +1,6 @@
 buildscript {
     dependencies {
-        classpath fileTree(dir: "$project.projectDir/../../../build/libs", include: "*.jar")
+        classpath fileTree(dir: findProperty("namespacer.libs.path"), include: "*.jar")
     }
 }
 
@@ -8,12 +8,12 @@ apply plugin: "java"
 apply plugin: "dev.stiemannkj1.gradle.namespacer"
 
 compileJava {
-    options.getRelease().set(8)
+    options.compilerArgs.addAll(["--release", "8"])
 }
 
 dependencies {
-    implementation fileTree(dir: "$project.projectDir/../../../build/libs", include: "*.jar")
-    namespace fileTree(dir: "$project.projectDir/../../../build/libs", include: "*.jar")
+    implementation fileTree(dir: findProperty("namespacer.libs.path"), include: "*.jar")
+    namespace fileTree(dir: findProperty("namespacer.libs.path"), include: "*.jar")
 }
 
 // TODO create an integration test that downloads and installs Gradle using gradlew and runs this task and then runs the JAR to prove that everything works.
