@@ -4,7 +4,6 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 src/test/gradle/build/
-src/test/gradle/.fake-user-home
 
 ### Gradle Wrapper ###
 gradle/wrapper/gradle-wrapper.jar

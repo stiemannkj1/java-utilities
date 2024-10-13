@@ -1,6 +1,6 @@
 package foo;
 
-final class Bar {
+public final class Bar {
     public String toString() {
         return dev.stiemannkj1.bytecode.namespacer.Namespacer.class.getTypeName();
     }

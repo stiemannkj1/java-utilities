@@ -1,1 +1,9 @@
+pluginManagement {
+    repositories {
+        maven {
+            url = "file:///${System.getProperty("user.home")}/.m2/repository"
+        }
+    }
+}
+
 rootProject.name = 'namespacer-gradle-plugin-test'
