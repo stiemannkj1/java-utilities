@@ -55,9 +55,11 @@ public final class ProcessUtils {
 
     busyWait(process::isAlive, timeoutMs);
 
-    if (process.isAlive()) {
-      process.destroy();
+    if (!process.isAlive()) {
+      return new Result(process.exitValue(), stdout, stderr);
     }
+
+    process.destroy();
 
     busyWait(process::isAlive, shutdownTimeoutNs);
 
@@ -65,7 +67,19 @@ public final class ProcessUtils {
       process.destroyForcibly();
     }
 
-    return new Result(process.isAlive() ? -1 : process.exitValue(), stdout, stderr);
+    if (process.isAlive()) {
+      return new Result(-1, stdout, stderr);
+    }
+
+    int exitCode = process.exitValue();
+
+    // If the code indicates success, change it to an unknown error/failure because the process had
+    // to be killed.
+    if (exitCode == 0) {
+      exitCode = -1;
+    }
+
+    return new Result(exitCode, stdout, stderr);
   }
 
   private ProcessUtils() {}

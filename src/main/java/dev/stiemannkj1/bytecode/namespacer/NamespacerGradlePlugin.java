@@ -77,6 +77,8 @@ public class NamespacerGradlePlugin implements Plugin<Project> {
     // TODO test with --no-daemon, test should install gradle and maven
     // TODO add option to prevent GrowableByteArray resizing to prevent allocations.
     // TODO add option for changing GrowableByteArray default size.
+
+    // TODO add transformer which is some weird gradle API thing.
   }
 
   public static class NamespaceJars extends DefaultTask {
