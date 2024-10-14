@@ -44,8 +44,10 @@ final class NamespacerGradlePluginTests {
       result =
           runWithTimeout(
               processBuilder, TimeUnit.MINUTES.toMillis(5), TimeUnit.SECONDS.toMillis(10));
+
       System.out.println(result.stdout());
       System.err.println(result.stderr());
+
       assertEquals(0, result.exitValue);
 
       try (final URLClassLoader testClassLoader =
