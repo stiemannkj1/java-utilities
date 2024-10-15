@@ -50,5 +50,14 @@ public final class Require {
     return array;
   }
 
+  public static int greaterThanZero(final int number, final String name) {
+
+    if (number < 1) {
+      throw new IllegalStateException(name + " must be greater than zero.");
+    }
+
+    return number;
+  }
+
   private Require() {}
 }

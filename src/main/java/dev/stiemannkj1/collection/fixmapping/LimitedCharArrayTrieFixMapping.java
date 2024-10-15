@@ -15,6 +15,8 @@
 */
 package dev.stiemannkj1.collection.fixmapping;
 
+import static dev.stiemannkj1.util.NumberUtils.isPowerOf2;
+
 import dev.stiemannkj1.annotation.VisibleForTesting;
 import dev.stiemannkj1.util.Pair;
 import java.util.Map;
@@ -148,8 +150,7 @@ class LimitedCharArrayTrieFixMapping<T> implements FixMappings.FixMapping<T> {
 
   static int prevPowerOf2(final int v) {
 
-    // https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
-    if ((v & (v - 1)) == 0) {
+    if (isPowerOf2(v)) {
       return v;
     }
 

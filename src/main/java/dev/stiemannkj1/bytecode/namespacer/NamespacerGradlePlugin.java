@@ -1,5 +1,8 @@
 package dev.stiemannkj1.bytecode.namespacer;
 
+import static dev.stiemannkj1.bytecode.namespacer.Namespacer.ObjectPool.DEFAULT_MAX_CLASS_FILE_MAJOR_VERSION;
+import static dev.stiemannkj1.bytecode.namespacer.NamespacerMain.DEFAULT_BUFFER_CAPACITY;
+
 import dev.stiemannkj1.util.Require;
 import java.io.File;
 import java.io.IOException;
@@ -19,8 +22,6 @@ import org.gradle.jvm.tasks.Jar;
 
 @SuppressWarnings("UnstableApiUsage")
 public class NamespacerGradlePlugin implements Plugin<Project> {
-
-  private static final int DEFAULT_BUFFER_CAPACITY = 1 << 10;
 
   @Override
   public void apply(final Project project) {
@@ -107,6 +108,29 @@ public class NamespacerGradlePlugin implements Plugin<Project> {
       this.outputJar = Require.notNull(outputJar, "outputJar");
     }
 
+    // TODO test with custom settings.
+    private int initialBufferSize = DEFAULT_BUFFER_CAPACITY;
+
+    public int getInitialBufferSize() {
+      return initialBufferSize;
+    }
+
+    public void setInitialBufferSize(int initialBufferSize) {
+      this.initialBufferSize = Require.greaterThanZero(initialBufferSize, "initialBufferSize");
+    }
+
+    // TODO test with custom settings.
+    private short maxClassFileVersion = DEFAULT_MAX_CLASS_FILE_MAJOR_VERSION;
+
+    public short getMaxClassFileVersion() {
+      return maxClassFileVersion;
+    }
+
+    public void setMaxClassFileVersion(final short maxClassFileVersion) {
+      this.maxClassFileVersion =
+          (short) Require.greaterThanZero(maxClassFileVersion, "maxClassFileVersion");
+    }
+
     @TaskAction
     public void namespaceJars() throws IOException {
 
@@ -129,7 +153,8 @@ public class NamespacerGradlePlugin implements Plugin<Project> {
           jars,
           Require.notEmpty(getReplacements(), "replacements"),
           Require.notNull(getOutputJar(), "outputJar"),
-          DEFAULT_BUFFER_CAPACITY);
+          initialBufferSize,
+          maxClassFileVersion);
     }
   }
 }

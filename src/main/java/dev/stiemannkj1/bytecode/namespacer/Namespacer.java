@@ -7,7 +7,6 @@ import static dev.stiemannkj1.bytecode.namespacer.NamespacerTablesGenerated.STAN
 import static dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray.size;
 import static dev.stiemannkj1.util.Assert.ASSERT_ENABLED;
 import static dev.stiemannkj1.util.Assert.assertAsciiPrintable;
-import static dev.stiemannkj1.util.Assert.assertNotNegative;
 import static dev.stiemannkj1.util.Assert.assertNotNull;
 import static dev.stiemannkj1.util.Assert.assertTrue;
 import static dev.stiemannkj1.util.StringUtils.appendHexString;
@@ -15,6 +14,7 @@ import static dev.stiemannkj1.util.StringUtils.appendHexString;
 import dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray;
 import dev.stiemannkj1.util.Assert;
 import dev.stiemannkj1.util.References.LongRef;
+import dev.stiemannkj1.util.Require;
 import dev.stiemannkj1.util.WithReusableStringBuilder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -30,9 +30,9 @@ public final class Namespacer {
 
   public static final class ObjectPool extends WithReusableStringBuilder {
 
-    private static final short MAX_CLASS_FILE_MAJOR_VERSION = /* Java 22 */ 66;
+    public static final short DEFAULT_MAX_CLASS_FILE_MAJOR_VERSION = /* Java 22 */ 66;
 
-    private long maxClassFileMajorVersion = MAX_CLASS_FILE_MAJOR_VERSION;
+    private long maxClassFileMajorVersion = DEFAULT_MAX_CLASS_FILE_MAJOR_VERSION;
     Replacements replacements = new Replacements();
     private ByteParser byteParser = new ByteParser();
     private LongRef i8Ref = new LongRef();
@@ -40,8 +40,9 @@ public final class Namespacer {
 
     public ObjectPool() {}
 
-    public ObjectPool(final Map<String, String> replacements) {
-      Replacements.reset(this.replacements, replacements);
+    public static void initializeReplacements(
+        final ObjectPool objectPool, final Map<String, String> replacements) {
+      Replacements.reset(objectPool.replacements, replacements);
     }
 
     private static StringBuilder errorMessageBuilder(final ObjectPool objectPool) {
@@ -55,8 +56,8 @@ public final class Namespacer {
      *
      * <p><strong>NOTE:</strong> when you specify a higher version, you must verify that class file
      * version does not modify Java class or method signature specifications since {@link
-     * ObjectPool#MAX_CLASS_FILE_MAJOR_VERSION}. If the specification has changed, the namespacer
-     * may generate invalid class files causing crashes or bugs. See: <a
+     * ObjectPool#DEFAULT_MAX_CLASS_FILE_MAJOR_VERSION}. If the specification has changed, the
+     * namespacer may generate invalid class files causing crashes or bugs. See: <a
      * href="https://docs.oracle.com/javase/specs/jvms/se22/html/jvms-4.html#jvms-4.7.9.1">JVM Spec
      * Section 4.7.9.1 Signatures</a>.
      *
@@ -65,7 +66,8 @@ public final class Namespacer {
      */
     public static ObjectPool withMaxClassFileVersion(final short maxClassFileMajorVersion) {
 
-      assertNotNegative(maxClassFileMajorVersion, "maxClassFileMajorVersion");
+      // TODO maybe disallow values less than DEFAULT_MAX_CLASS_FILE_MAJOR_VERSION
+      Require.greaterThanZero(maxClassFileMajorVersion, "maxClassFileMajorVersion");
 
       final ObjectPool objectPool = new ObjectPool();
       objectPool.maxClassFileMajorVersion = maxClassFileMajorVersion;

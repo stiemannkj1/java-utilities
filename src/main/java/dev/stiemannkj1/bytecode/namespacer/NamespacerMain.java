@@ -1,5 +1,7 @@
 package dev.stiemannkj1.bytecode.namespacer;
 
+import static dev.stiemannkj1.bytecode.namespacer.Namespacer.ObjectPool.DEFAULT_MAX_CLASS_FILE_MAJOR_VERSION;
+import static dev.stiemannkj1.bytecode.namespacer.Namespacer.ObjectPool.initializeReplacements;
 import static dev.stiemannkj1.util.Assert.assertNotNull;
 
 import dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray;
@@ -23,6 +25,8 @@ import java.util.zip.ZipOutputStream;
 
 public final class NamespacerMain {
 
+  public static final int DEFAULT_BUFFER_CAPACITY = 1 << 10;
+
   private static final class ObjectPool extends WithReusableStringBuilder {
     private Boolean allowOverrides = Boolean.TRUE;
     private byte[] buffer = new byte[1 << 14];
@@ -42,12 +46,27 @@ public final class NamespacerMain {
     }
   }
 
+  public static void namespaceJar(
+      final List<File> jarsToNamespace,
+      final Map<String, String> replacementsMap,
+      final File outputJar)
+      throws IOException {
+    namespaceJars(
+        false,
+        jarsToNamespace,
+        replacementsMap,
+        outputJar,
+        DEFAULT_BUFFER_CAPACITY,
+        DEFAULT_MAX_CLASS_FILE_MAJOR_VERSION);
+  }
+
   public static void namespaceJars(
       final boolean firstJarOverrides,
       final List<File> jarsToNamespace,
       final Map<String, String> replacementsMap,
       final File outputJar,
-      final int initialClassFileBufferCapacity)
+      final int initialClassFileBufferCapacity,
+      final short maxClassFileVersion)
       throws IOException {
 
     // TODO add option to fail task if the buffer has to grow since it'll slow things down.
@@ -56,9 +75,11 @@ public final class NamespacerMain {
     final File partialJar = new File(outputJarParent, outputJar.getName() + ".PART.zip");
     final ObjectPool objectPool =
         new ObjectPool(
-            new Namespacer.ObjectPool(replacementsMap),
+            Namespacer.ObjectPool.withMaxClassFileVersion(maxClassFileVersion),
             new GrowableByteArray(initialClassFileBufferCapacity),
             new GrowableByteArray(initialClassFileBufferCapacity));
+
+    initializeReplacements(objectPool.namespacer, replacementsMap);
 
     if (!firstJarOverrides) {
       objectPool.allowOverrides = Boolean.FALSE;
