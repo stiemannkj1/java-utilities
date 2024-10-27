@@ -25,6 +25,12 @@ import java.util.Set;
 // TODO JMH benchmark vs ASM relocator
 public final class Namespacer {
 
+  public static final String META_INF_SERVICES = "META-INF/services/";
+  public static final int SERVICES_START_INDEX_UNDER_META_INF = "META-INF/".length();
+  public static final String WEB_INF_CLASSES = "WEB-INF/classes/";
+  public static final String WEB_INF_SERVICES = "WEB-INF/classes/META-INF/services/";
+  public static final int SERVICES_START_INDEX_UNDER_WEB_INF = "WEB-INF/classes/META-INF/".length();
+
   private static final int U2_MAX_VALUE = (1 << 16) - 1;
   private static final String NOT_SIGNATURE = Namespacer.class.getTypeName() + ".NOT_SIGNATURE";
 
@@ -1034,6 +1040,7 @@ public final class Namespacer {
     }
   }
 
+  @SuppressWarnings("TextLabelInSwitchStatement")
   public static void namespaceServiceFile(
       final ObjectPool objectPool,
       final GrowableByteArray serviceFileBefore,
@@ -1069,23 +1076,22 @@ public final class Namespacer {
           start = parser.currentIndex;
           boolean replaced = false;
 
-          // TODO only check for class names. Currently this checks against all replacement values
-          // which includes files paths.
           namespaceServiceClassNames:
-          for (int i = 0; i < objectPool.replacements.length; i++) {
+          for (int i = 0; i < objectPool.replacements.classNameReplacements; i++) {
 
-            for (int j = 0; j < objectPool.replacements.before[i].length; j++) {
+            for (int j = 0; j < objectPool.replacements.beforeClassNames[i].length; j++) {
 
-              if (!ByteParser.currentMatches(parser, objectPool.replacements.before[i][j])) {
+              if (!ByteParser.currentMatches(
+                  parser, objectPool.replacements.beforeClassNames[i][j])) {
                 continue namespaceServiceClassNames;
               }
             }
 
             GrowableByteArray.appendBytes(
-                objectPool.replacements.after[i],
+                objectPool.replacements.afterClassNames[i],
                 0,
                 serviceFileAfter,
-                objectPool.replacements.after[i].length);
+                objectPool.replacements.afterClassNames[i].length);
             parser.currentIndex += objectPool.replacements.before[i].length;
             start = parser.currentIndex;
             replaced = true;
@@ -1117,6 +1123,10 @@ public final class Namespacer {
     private byte[][] after;
     private int length;
 
+    private byte[][] beforeClassNames;
+    private byte[][] afterClassNames;
+    private int classNameReplacements;
+
     String[] beforePath;
     String[] afterPath;
     int paths;
@@ -1130,11 +1140,14 @@ public final class Namespacer {
 
       replacements.replacementsMap = replacementsMap;
 
-      final int replacementsSize = replacementsMap.size() * 16;
+      replacements.classNameReplacements = replacementsMap.size();
+      final int replacementsSize = replacements.classNameReplacements * 16;
 
       if (replacements.before == null || replacementsSize > replacements.before.length) {
         replacements.before = new byte[replacementsSize][];
         replacements.after = new byte[replacementsSize][];
+        replacements.beforeClassNames = new byte[replacements.classNameReplacements][];
+        replacements.afterClassNames = new byte[replacements.classNameReplacements][];
         final int paths = replacementsMap.size() * 4;
         replacements.beforePath = new String[paths];
         replacements.afterPath = new String[paths];
@@ -1142,19 +1155,29 @@ public final class Namespacer {
 
       final Set<Map.Entry<String, String>> entries = replacementsMap.entrySet();
 
+      replacements.classNameReplacements = 0;
+
       int i = 0;
       for (final Map.Entry<String, String> entry : entries) {
 
+        replacements.beforeClassNames[replacements.classNameReplacements] =
+            entry.getKey().getBytes(StandardCharsets.UTF_8);
+        final byte[] beforeWithPeriods =
+            replacements.beforeClassNames[replacements.classNameReplacements];
+        replacements.afterClassNames[replacements.classNameReplacements] =
+            entry.getValue().getBytes(StandardCharsets.UTF_8);
+        final byte[] afterWithPeriods =
+            replacements.afterClassNames[replacements.classNameReplacements];
+        replacements.classNameReplacements++;
+
+        // TODO support modified UTF-8 here.
         replacements.before[i] = entry.getKey().getBytes(StandardCharsets.UTF_8);
-        final byte[] beforeWithPeriods = replacements.before[i];
         replacements.after[i] = entry.getValue().getBytes(StandardCharsets.UTF_8);
-        final byte[] afterWithPeriods = replacements.after[i];
 
         i++;
 
-        final String metaInfServices = "META-INF/services/";
-        replacements.before[i] = prependAscii(metaInfServices, beforeWithPeriods);
-        replacements.after[i] = prependAscii(metaInfServices, afterWithPeriods);
+        replacements.before[i] = prependAscii(META_INF_SERVICES, beforeWithPeriods);
+        replacements.after[i] = prependAscii(META_INF_SERVICES, afterWithPeriods);
 
         replacements.beforePath[replacements.paths] =
             new String(replacements.before[i], StandardCharsets.UTF_8);
@@ -1165,15 +1188,13 @@ public final class Namespacer {
 
         i++;
 
-        final String metaInfServicesAbsolute = "/META-INF/services/";
-        replacements.before[i] = prependAscii(metaInfServicesAbsolute, beforeWithPeriods);
-        replacements.after[i] = prependAscii(metaInfServicesAbsolute, afterWithPeriods);
+        replacements.before[i] = prependAscii(true, META_INF_SERVICES, beforeWithPeriods);
+        replacements.after[i] = prependAscii(true, META_INF_SERVICES, afterWithPeriods);
 
         i++;
 
-        final String webInfServices = "WEB-INF/classes/META-INF/services/";
-        replacements.before[i] = prependAscii(webInfServices, beforeWithPeriods);
-        replacements.after[i] = prependAscii(webInfServices, afterWithPeriods);
+        replacements.before[i] = prependAscii(WEB_INF_SERVICES, beforeWithPeriods);
+        replacements.after[i] = prependAscii(WEB_INF_SERVICES, afterWithPeriods);
 
         replacements.beforePath[replacements.paths] =
             new String(replacements.before[i], StandardCharsets.UTF_8);
@@ -1184,9 +1205,8 @@ public final class Namespacer {
 
         i++;
 
-        final String webInfServicesAbsolute = "/WEB-INF/classes/META-INF/services/";
-        replacements.before[i] = prependAscii(webInfServicesAbsolute, beforeWithPeriods);
-        replacements.after[i] = prependAscii(webInfServicesAbsolute, afterWithPeriods);
+        replacements.before[i] = prependAscii(true, WEB_INF_SERVICES, beforeWithPeriods);
+        replacements.after[i] = prependAscii(true, WEB_INF_SERVICES, afterWithPeriods);
 
         i++;
 
@@ -1211,8 +1231,8 @@ public final class Namespacer {
 
         i++;
 
-        replacements.before[i] = prependAscii("WEB-INF/classes/", beforeWithSlashes);
-        replacements.after[i] = prependAscii("WEB-INF/classes/", afterWithSlashes);
+        replacements.before[i] = prependAscii(WEB_INF_CLASSES, beforeWithSlashes);
+        replacements.after[i] = prependAscii(WEB_INF_CLASSES, afterWithSlashes);
 
         replacements.beforePath[replacements.paths] =
             new String(replacements.before[i], StandardCharsets.UTF_8);
@@ -1223,8 +1243,8 @@ public final class Namespacer {
 
         i++;
 
-        replacements.before[i] = prependAscii("/WEB-INF/classes/", beforeWithSlashes);
-        replacements.after[i] = prependAscii("/WEB-INF/classes/", afterWithSlashes);
+        replacements.before[i] = prependAscii(true, WEB_INF_CLASSES, beforeWithSlashes);
+        replacements.after[i] = prependAscii(true, WEB_INF_CLASSES, afterWithSlashes);
 
         i++;
       }
@@ -1244,9 +1264,15 @@ public final class Namespacer {
       return utf8;
     }
 
-    private static byte[] prependAscii(final String string, final byte[] utf8) {
+    private static byte[] prependAscii(
+        final boolean isAbsolute, final String string, final byte[] utf8) {
 
-      final byte[] prependedUtf8 = new byte[string.length() + utf8.length];
+      final int startIndex = isAbsolute ? 1 : 0;
+      final byte[] prependedUtf8 = new byte[startIndex + string.length() + utf8.length];
+
+      if (isAbsolute) {
+        prependedUtf8[0] = '/';
+      }
 
       for (int i = 0; i < string.length(); i++) {
 
@@ -1265,11 +1291,15 @@ public final class Namespacer {
                       + prependedUtf8.length);
         }
 
-        prependedUtf8[i] = (byte) current;
+        prependedUtf8[startIndex + i] = (byte) current;
       }
 
-      System.arraycopy(utf8, 0, prependedUtf8, string.length(), utf8.length);
+      System.arraycopy(utf8, 0, prependedUtf8, startIndex + string.length(), utf8.length);
       return prependedUtf8;
+    }
+
+    private static byte[] prependAscii(final String string, final byte[] utf8) {
+      return prependAscii(false, string, utf8);
     }
   }
 

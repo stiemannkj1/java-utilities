@@ -29,6 +29,72 @@ public final class StringUtils {
     return '\u0020' <= char_ && char_ <= '\u007e';
   }
 
+  /**
+   * Checks if a string begins with a particular prefix. Always returns the same result as {@link
+   * String#startsWith(String)} (<strong>NOT</strong> {@link String#startsWith(String, int)}).
+   *
+   * <p>The provided offset is only used for optimization. For example, you may want to check if a
+   * string starts with "META-INF/services/". If you know that "META-INF/" is an extremely common
+   * prefix and "services/" is uncommon at offset 8 unless preceded by "META-INF/", the following
+   * checks will be faster:
+   *
+   * <pre>{@code
+   * string.startsWith("services/", "META-INF/".length()) && string.startsWith("META-INF/")
+   * }</pre>
+   *
+   * <p>The above code is equivalent to calling this method with:
+   *
+   * <pre>{@code
+   * startsWith(string, "META-INF/services/", "META-INF/".length());
+   * }</pre>
+   *
+   * @param string the string to search.
+   * @param prefix the prefix to search for. <strong>NOTE:</strong> the <strong>entire</strong>
+   *     prefix must match for this method to return true.
+   * @param offsetForOptimization the prefix offset to start searching at. The offset is only used
+   *     to optimize the checks and does <strong>NOT</strong> limit matching to subsequences of the
+   *     prefix.
+   * @return true if the string begins with the prefix string (regardless of the offset value).
+   */
+  public static boolean startsWith(
+      final CharSequence string, final CharSequence prefix, final int offsetForOptimization) {
+
+    Require.notNull(string, "string");
+    final int length = Require.notNull(prefix, "prefix").length();
+
+    if (length == 0) {
+      return true;
+    }
+
+    if (length > string.length()) {
+      return false;
+    }
+
+    if (offsetForOptimization < 0 || length <= offsetForOptimization) {
+      throw new IllegalArgumentException(
+          "Offset must be a valid index into the prefix string. Expected offset "
+              + offsetForOptimization
+              + " to be less than "
+              + length);
+    }
+
+    final int max = length - 1;
+
+    for (int i = 0; i <= max; i++) {
+
+      final int index =
+          (offsetForOptimization + i)
+              // Wrap around once the max value is reached.
+              & max;
+
+      if (string.charAt(index) != prefix.charAt(index)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   // TODO minimize allocations here. No need to allocate the byte array at all.
   public static String readUtf8String(final File file) throws IOException {
     return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);

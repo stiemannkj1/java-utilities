@@ -1,10 +1,15 @@
 package dev.stiemannkj1.bytecode.namespacer;
 
+import static dev.stiemannkj1.bytecode.namespacer.Namespacer.META_INF_SERVICES;
 import static dev.stiemannkj1.bytecode.namespacer.Namespacer.ObjectPool.DEFAULT_MAX_CLASS_FILE_MAJOR_VERSION;
 import static dev.stiemannkj1.bytecode.namespacer.Namespacer.ObjectPool.initializeReplacements;
+import static dev.stiemannkj1.bytecode.namespacer.Namespacer.SERVICES_START_INDEX_UNDER_META_INF;
+import static dev.stiemannkj1.bytecode.namespacer.Namespacer.SERVICES_START_INDEX_UNDER_WEB_INF;
+import static dev.stiemannkj1.bytecode.namespacer.Namespacer.WEB_INF_SERVICES;
 import static dev.stiemannkj1.util.Assert.assertNotNull;
 
 import dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray;
+import dev.stiemannkj1.util.StringUtils;
 import dev.stiemannkj1.util.WithReusableStringBuilder;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -32,17 +37,17 @@ public final class NamespacerMain {
     private byte[] buffer = new byte[1 << 14];
     private Map<String, Boolean> processedFiles = new HashMap<>(1 << 8);
     private Namespacer.ObjectPool namespacer;
-    private GrowableByteArray classFileBefore;
-    private GrowableByteArray classFileAfter;
+    private GrowableByteArray fileBefore;
+    private GrowableByteArray fileAfter;
     private List<String> errors = new ArrayList<>();
 
     public ObjectPool(
         final Namespacer.ObjectPool namespacer,
-        final GrowableByteArray classFileBefore,
-        final GrowableByteArray classFileAfter) {
+        final GrowableByteArray fileBefore,
+        final GrowableByteArray fileAfter) {
       this.namespacer = assertNotNull(namespacer);
-      this.classFileBefore = assertNotNull(classFileBefore);
-      this.classFileAfter = assertNotNull(classFileAfter);
+      this.fileBefore = assertNotNull(fileBefore);
+      this.fileAfter = assertNotNull(fileAfter);
     }
   }
 
@@ -168,12 +173,13 @@ public final class NamespacerMain {
           continue;
         }
 
-        boolean serviceFile = false;
+        final boolean serviceFile =
+            StringUtils.startsWith(name, META_INF_SERVICES, SERVICES_START_INDEX_UNDER_META_INF)
+                || StringUtils.startsWith(
+                    name, WEB_INF_SERVICES, SERVICES_START_INDEX_UNDER_WEB_INF);
 
         for (int i = 0; i < objectPool.namespacer.replacements.paths; i++) {
 
-          // specify if service file here
-          // serviceFile = true;
           if (name.startsWith(objectPool.namespacer.replacements.beforePath[i])) {
             name =
                 objectPool
@@ -198,20 +204,7 @@ public final class NamespacerMain {
           continue;
         }
 
-        if (serviceFile) {
-          Namespacer.namespaceServiceFile(
-              objectPool.namespacer,
-              objectPool.classFileBefore,
-              replacementsMap,
-              objectPool.classFileAfter);
-          continue;
-        }
-
-        if (!name.endsWith(".class")) {
-
-          // TODO handle service files
-          // TODO should we handle JSPs and .java,.groovy,.kts,.gradle,.kotlin,.scala sources?
-          // TODO should we handle Log4j2's binary cache file?
+        if (!serviceFile && !name.endsWith(".class")) {
 
           int read;
 
@@ -223,9 +216,15 @@ public final class NamespacerMain {
           continue;
         }
 
-        GrowableByteArray.clear(objectPool.classFileBefore);
-        GrowableByteArray.clear(objectPool.classFileAfter);
-        GrowableByteArray.readFully(objectPool.classFileBefore, jarInputStream);
+        GrowableByteArray.clear(objectPool.fileBefore);
+        GrowableByteArray.clear(objectPool.fileAfter);
+        GrowableByteArray.readFully(objectPool.fileBefore, jarInputStream);
+
+        if (serviceFile) {
+          Namespacer.namespaceServiceFile(
+              objectPool.namespacer, objectPool.fileBefore, replacementsMap, objectPool.fileAfter);
+          continue;
+        }
 
         final String result;
 
@@ -234,9 +233,9 @@ public final class NamespacerMain {
               Namespacer.namespaceClassFile(
                   objectPool.namespacer,
                   zipEntryToRead.getName(),
-                  objectPool.classFileBefore,
+                  objectPool.fileBefore,
                   replacementsMap,
-                  objectPool.classFileAfter);
+                  objectPool.fileAfter);
         } catch (final Throwable t) {
           throw new AssertionError("Failed to namespace class: " + zipEntryToRead.getName(), t);
         }
@@ -247,9 +246,9 @@ public final class NamespacerMain {
         }
 
         jarOutputStream.write(
-            GrowableByteArray.bytes(objectPool.classFileAfter),
+            GrowableByteArray.bytes(objectPool.fileAfter),
             0,
-            GrowableByteArray.size(objectPool.classFileAfter));
+            GrowableByteArray.size(objectPool.fileAfter));
       }
     }
   }

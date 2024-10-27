@@ -50,6 +50,10 @@ public final class ClassGenerator extends ClassLoader {
 
   public static final class ClassUtil {
 
+    public static String toEntryPath(final Class<?> aClass) {
+      return toEntryPath(aClass.getTypeName());
+    }
+
     public static String toEntryPath(final String className) {
       return className.replace(".", "/") + ".class";
     }
