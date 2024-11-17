@@ -28,12 +28,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.stiemannkj1.collection.fixmapping.FixMappings.ImmutablePrefixMapping;
 import dev.stiemannkj1.collection.fixmapping.FixMappings.ImmutableSuffixMapping;
+import dev.stiemannkj1.util.MapBuilder;
 import dev.stiemannkj1.util.Pair;
 import java.util.AbstractMap;
 import java.util.AbstractSet;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -83,7 +83,12 @@ final class FixMappingsTests {
 
       // Test odd number of prefixes.
       final Map<String, Integer> prefixes =
-          newTestMapBuilder().add("abc", 0).add("abe", 1).add("abd", 2).add("abdicate", 3).map;
+          new MapBuilder<String, Integer>()
+              .add("abc", 0)
+              .add("abe", 1)
+              .add("abd", 2)
+              .add("abdicate", 3)
+              .mapRef;
 
       ImmutablePrefixMapping<Integer> prefixMap = newPrefixMap(prefixes);
 
@@ -121,7 +126,12 @@ final class FixMappingsTests {
 
       // Test even number of prefixes.
       final Map<String, Integer> prefixes =
-          newTestMapBuilder().add("abc", 0).add("abe", 1).add("abd", 2).add("abdicate", 3).map;
+          new MapBuilder<String, Integer>()
+              .add("abc", 0)
+              .add("abe", 1)
+              .add("abd", 2)
+              .add("abdicate", 3)
+              .mapRef;
 
       ImmutablePrefixMapping<Integer> prefixMap = newPrefixMap(prefixes);
 
@@ -169,7 +179,7 @@ final class FixMappingsTests {
 
       // Test odd number of suffixes.
       final Map<String, Integer> suffixes =
-          newTestMapBuilder().add("bdicate", 0).add("abdicate", 2).map;
+          new MapBuilder<String, Integer>().add("bdicate", 0).add("abdicate", 2).mapRef;
 
       assertDoesNotThrow(() -> newPrefixMap(suffixes));
     }
@@ -178,10 +188,10 @@ final class FixMappingsTests {
 
       return Stream.of(
           Collections.emptyMap(),
-          newTestMapBuilder().add(null, 1).map,
-          newTestMapBuilder().add(null, 1).add("asdf", 1).map,
-          newTestMapBuilder().add("", 1).map,
-          newTestMapBuilder().add("", 1).add("asdf", 1).map,
+          new MapBuilder<String, Integer>().add(null, 1).mapRef,
+          new MapBuilder<String, Integer>().add(null, 1).add("asdf", 1).mapRef,
+          new MapBuilder<String, Integer>().add("", 1).mapRef,
+          new MapBuilder<String, Integer>().add("", 1).add("asdf", 1).mapRef,
           // Invalid map with duplicate keys:
           toMap(Arrays.asList(Pair.of("asdf", 1), Pair.of("asdf", 1))),
           // Invalid map with null entry:
@@ -238,7 +248,12 @@ final class FixMappingsTests {
 
       // Test even number of suffixes.
       final Map<String, Integer> suffixes =
-          newTestMapBuilder().add("abc", 0).add("abe", 1).add("ate", 2).add("abdicate", 3).map;
+          new MapBuilder<String, Integer>()
+              .add("abc", 0)
+              .add("abe", 1)
+              .add("ate", 2)
+              .add("abdicate", 3)
+              .mapRef;
 
       ImmutableSuffixMapping<Integer> suffixMap = newSuffixMap(suffixes);
 
@@ -276,7 +291,12 @@ final class FixMappingsTests {
 
       // Test even number of suffixes.
       final Map<String, Integer> suffixes =
-          newTestMapBuilder().add("abc", 0).add("abe", 1).add("ate", 2).add("abdicate", 3).map;
+          new MapBuilder<String, Integer>()
+              .add("abc", 0)
+              .add("abe", 1)
+              .add("ate", 2)
+              .add("abdicate", 3)
+              .mapRef;
 
       ImmutableSuffixMapping<Integer> suffixMap = newSuffixMap(suffixes);
 
@@ -324,7 +344,7 @@ final class FixMappingsTests {
 
       // Test odd number of suffixes.
       final Map<String, Integer> suffixes =
-          newTestMapBuilder().add("abdicat", 0).add("abdicate", 2).map;
+          new MapBuilder<String, Integer>().add("abdicat", 0).add("abdicate", 2).mapRef;
 
       assertDoesNotThrow(() -> newSuffixMap(suffixes));
     }
@@ -333,10 +353,10 @@ final class FixMappingsTests {
 
       return Stream.of(
           Collections.emptyMap(),
-          newTestMapBuilder().add(null, 1).map,
-          newTestMapBuilder().add(null, 1).add("asdf", 1).map,
-          newTestMapBuilder().add("", 1).map,
-          newTestMapBuilder().add("", 1).add("asdf", 1).map,
+          new MapBuilder<String, Integer>().add(null, 1).mapRef,
+          new MapBuilder<String, Integer>().add(null, 1).add("asdf", 1).mapRef,
+          new MapBuilder<String, Integer>().add("", 1).mapRef,
+          new MapBuilder<String, Integer>().add("", 1).add("asdf", 1).mapRef,
           // Invalid map with duplicate keys:
           toMap(Arrays.asList(Pair.of("asdf", 1), Pair.of("asdf", 1))),
           // Invalid map with null entry:
@@ -533,19 +553,6 @@ final class FixMappingsTests {
     void gets_index_from_char(final char char_, final int offset) {
       assertEquals(char_ - offset, LimitedCharArrayTrieFixMapping.toIndex(char_, offset));
     }
-  }
-
-  private static final class MapBuilder<K, V> {
-    private final Map<K, V> map = new HashMap<>();
-
-    private MapBuilder<K, V> add(final K key, V value) {
-      map.put(key, value);
-      return this;
-    }
-  }
-
-  private static MapBuilder<String, Integer> newTestMapBuilder() {
-    return new MapBuilder<>();
   }
 
   private static Map<String, Integer> toMap(final List<Map.Entry<String, Integer>> entries) {

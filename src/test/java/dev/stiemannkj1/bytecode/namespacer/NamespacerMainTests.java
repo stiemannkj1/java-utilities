@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Instant;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
@@ -213,31 +214,35 @@ public final class NamespacerMainTests {
             "Wrong timestamp for: " + expectedEntry.name);
       }
 
-      int expectedServices = 6;
-
       final Class<?> keepNamespaceTestServiceClass =
           classLoader.loadClass(KeepNamespaceTestService.class.getTypeName());
 
-      for (final ServiceLoader<?> serviceLoader :
-          List.of(
-              ServiceLoader.load(keepNamespaceTestServiceClass, classLoader),
-              ServiceLoader.load(classLoader.loadClass("foo.bar.MyService"), classLoader))) {
-        for (final Object service : serviceLoader) {
+      final List<String> actualServiceStrings = new ArrayList<>();
 
-          final Object string = service.getClass().getMethod("getString").invoke(service);
-          assertNotNull(string);
-
-          if (keepNamespaceTestServiceClass.isInstance(service)) {
-            assertEquals(KeepNamespaceTestServiceImpl.class.getTypeName(), string.toString());
-          } else {
-            assertTrue(string.toString().startsWith("foo.bar."));
-          }
-
-          expectedServices--;
-        }
+      for (final Object service : ServiceLoader.load(keepNamespaceTestServiceClass, classLoader)) {
+        actualServiceStrings.add(service.toString());
       }
 
-      assertEquals(0, expectedServices);
+      assertEquals(
+          Arrays.asList(
+              "foo.bar.MyServiceImpl1",
+              "foo.bar.MyServiceImpl2",
+              KeepNamespaceTestServiceImpl.class.getTypeName()),
+          actualServiceStrings);
+
+      actualServiceStrings.clear();
+
+      for (final Object service :
+          ServiceLoader.load(classLoader.loadClass("foo.bar.MyService"), classLoader)) {
+        actualServiceStrings.add(service.toString());
+      }
+
+      assertEquals(
+          Arrays.asList(
+              "foo.bar.MyServiceImpl1",
+              "foo.bar.MyServiceImpl2",
+              KeepNamespaceTestServiceImpl.class.getTypeName()),
+          actualServiceStrings);
     }
 
     assertTrue(

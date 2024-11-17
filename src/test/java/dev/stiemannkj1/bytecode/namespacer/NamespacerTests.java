@@ -13,8 +13,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import dev.stiemannkj1.bytecode.ClassGenerator;
 import dev.stiemannkj1.bytecode.namespacer.Namespacer.ObjectPool;
 import dev.stiemannkj1.collection.arrays.GrowableArrays.GrowableByteArray;
+import dev.stiemannkj1.util.MapBuilder;
 import java.io.IOException;
 import java.lang.reflect.Array;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -1273,5 +1275,84 @@ final class NamespacerTests {
     public static ClassToNamespace[] array(final ClassToNamespace[] array) {
       return array;
     }
+  }
+
+  static Stream<Arguments> serviceFileTestCases() {
+    return Stream.of(
+        Arguments.of(
+            "test.Test\nfoo.bar.Baz",
+            "test.Test\nreplace.me.Baz",
+            new MapBuilder<String, String>().add("replace.me.", "foo.bar.").mapRef),
+        Arguments.of(
+            "test.Test\nfoo.bar.Baz\n",
+            "test.Test\nreplace.me.Baz\n",
+            new MapBuilder<String, String>().add("replace.me.", "foo.bar.").mapRef),
+        Arguments.of(
+            "test.Test\nfoo.bar.Baz",
+            "test.Test\nreplace.me.Please",
+            new MapBuilder<String, String>().add("replace.me.Please", "foo.bar.Baz").mapRef),
+        Arguments.of(
+            "test.Test\nfoo.bar.Baz\n",
+            "test.Test\nreplace.me.Please\n",
+            new MapBuilder<String, String>().add("replace.me.Please", "foo.bar.Baz").mapRef),
+        Arguments.of(
+            "test.Test\nfoo.bar.Baz\ntest.Test1",
+            "test.Test\nreplace.me.Baz\ntest.Test1",
+            new MapBuilder<String, String>().add("replace.me.", "foo.bar.").mapRef),
+        Arguments.of(
+            "test.Test\nfoo.bar.Baz\ntest.Test1\n",
+            "test.Test\nreplace.me.Baz\ntest.Test1\n",
+            new MapBuilder<String, String>().add("replace.me.", "foo.bar.").mapRef),
+        Arguments.of(
+            "foo.bar.Test\nfoo.bar.Baz\nfoo.bar.Test1",
+            "test.Test\nreplace.me.Baz\ntest.Test1",
+            new MapBuilder<String, String>()
+                .add("replace.me.", "foo.bar.")
+                .add("test.", "foo.bar.")
+                .mapRef),
+        Arguments.of(
+            " \t\n\t #test.Test \t\n\t foo.bar.Baz \t\n\t #test.Test1 \t\n\t foo.bar.Test \t\n\t #comment",
+            " \t\n\t #test.Test \t\n\t replace.me.Baz \t\n\t #test.Test1 \t\n\t test.Test \t\n\t #comment",
+            new MapBuilder<String, String>()
+                .add("replace.me.", "foo.bar.")
+                .add("test.", "foo.bar.")
+                .mapRef),
+        Arguments.of(
+            "#comment",
+            "#comment",
+            new MapBuilder<String, String>()
+                .add("replace.me.", "foo.bar.")
+                .add("test.", "foo.bar.")
+                .mapRef),
+        Arguments.of(
+            "",
+            "",
+            new MapBuilder<String, String>()
+                .add("replace.me.", "foo.bar.")
+                .add("test.", "foo.bar.")
+                .mapRef));
+  }
+
+  @MethodSource("serviceFileTestCases")
+  @ParameterizedTest
+  void namespaces_service_files(
+      final String expectedResult,
+      final String serviceFile,
+      final Map<String, String> replacementsMap) {
+
+    final GrowableByteArray fileBefore =
+        new GrowableByteArray(serviceFile.getBytes(StandardCharsets.UTF_8));
+    final GrowableByteArray fileAfter = new GrowableByteArray(1 << 4);
+    final Namespacer.ObjectPool namespacer = new Namespacer.ObjectPool();
+
+    Namespacer.namespaceServiceFile(namespacer, fileBefore, replacementsMap, fileAfter);
+
+    assertEquals(
+        expectedResult,
+        new String(
+            GrowableByteArray.bytes(fileAfter),
+            0,
+            GrowableByteArray.size(fileAfter),
+            StandardCharsets.UTF_8));
   }
 }

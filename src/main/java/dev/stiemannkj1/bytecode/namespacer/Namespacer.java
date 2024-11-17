@@ -1056,7 +1056,8 @@ public final class Namespacer {
 
     int start = 0;
 
-    for (; parser.currentIndex < parser.maxIndexExclusive; parser.currentIndex++) {
+    iterateServices:
+    while (parser.currentIndex < parser.maxIndexExclusive) {
 
       byte current = GrowableByteArray.get(parser.bytes, parser.currentIndex);
 
@@ -1067,22 +1068,28 @@ public final class Namespacer {
         case '\t':
           // fallthrough;
         case '\n':
+          parser.currentIndex++;
           break;
         case '#':
           ByteParser.consumeUntil(parser, '\n');
-          break;
+          continue;
         default:
-          GrowableByteArray.appendBytes(parser.bytes, start, serviceFileAfter, parser.currentIndex);
+          GrowableByteArray.appendBytes(
+              parser.bytes, start, serviceFileAfter, parser.currentIndex - start);
           start = parser.currentIndex;
-          boolean replaced = false;
 
           namespaceServiceClassNames:
           for (int i = 0; i < objectPool.replacements.classNameReplacements; i++) {
 
+            if (objectPool.replacements.beforeClassNames[i].length
+                > (GrowableByteArray.size(serviceFileBefore) - parser.currentIndex)) {
+              continue;
+            }
+
             for (int j = 0; j < objectPool.replacements.beforeClassNames[i].length; j++) {
 
-              if (!ByteParser.currentMatches(
-                  parser, objectPool.replacements.beforeClassNames[i][j])) {
+              if (objectPool.replacements.beforeClassNames[i][j]
+                  != GrowableByteArray.get(serviceFileBefore, parser.currentIndex + j)) {
                 continue namespaceServiceClassNames;
               }
             }
@@ -1092,20 +1099,19 @@ public final class Namespacer {
                 0,
                 serviceFileAfter,
                 objectPool.replacements.afterClassNames[i].length);
-            parser.currentIndex += objectPool.replacements.before[i].length;
+            parser.currentIndex += objectPool.replacements.beforeClassNames[i].length;
             start = parser.currentIndex;
-            replaced = true;
+            break;
           }
 
-          if (!replaced) {
-            ByteParser.consumeUntil(parser, '\n');
+          if (ByteParser.consumeUntil(parser, '\n') == -1) {
+            break iterateServices;
           }
-
-          break;
       }
     }
 
-    GrowableByteArray.appendBytes(parser.bytes, start, serviceFileAfter, parser.currentIndex);
+    GrowableByteArray.appendBytes(
+        parser.bytes, start, serviceFileAfter, parser.currentIndex - start);
   }
 
   // TODO switch to using a trie/prefix tree under the hood

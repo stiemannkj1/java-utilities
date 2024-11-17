@@ -223,6 +223,10 @@ public final class NamespacerMain {
         if (serviceFile) {
           Namespacer.namespaceServiceFile(
               objectPool.namespacer, objectPool.fileBefore, replacementsMap, objectPool.fileAfter);
+          jarOutputStream.write(
+              GrowableByteArray.bytes(objectPool.fileAfter),
+              0,
+              GrowableByteArray.size(objectPool.fileAfter));
           continue;
         }
 

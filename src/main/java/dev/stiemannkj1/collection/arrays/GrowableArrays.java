@@ -24,6 +24,11 @@ public final class GrowableArrays {
       bytes = new byte[assertPositive(initialCapacity, "initialCapacity")];
     }
 
+    public GrowableByteArray(final byte[] wrapped) {
+      bytes = wrapped;
+      size = wrapped.length;
+    }
+
     public static void clear(final GrowableByteArray array) {
       array.size = 0;
     }
