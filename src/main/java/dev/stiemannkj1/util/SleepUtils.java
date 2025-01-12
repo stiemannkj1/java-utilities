@@ -5,35 +5,43 @@ import java.util.function.BooleanSupplier;
 
 public final class SleepUtils {
 
-  public static void busyWaitUnchecked(final BooleanSupplier predicate, final long timeoutMs) {
+  public static boolean uncheckedBusyWaitUntil(
+      final BooleanSupplier predicate, final long timeoutMs) {
     try {
-      busyWait(predicate, timeoutMs);
+      return busyWaitUntil(predicate, timeoutMs);
     } catch (final InterruptedException e) {
-      throw new InterruptedError("Busy waiting interrupted.", e);
+      throw new NoStackTraceInterruptedError("Busy waiting interrupted.", e);
     }
   }
 
-  public static void busyWait(final BooleanSupplier predicate, final long timeoutMs)
+  @SuppressWarnings("BusyWait")
+  public static boolean busyWaitUntil(final BooleanSupplier predicate, final long timeoutMs)
       throws InterruptedException {
 
+    final long sleepMs = timeoutMs >= 500 ? 50 : Math.min(timeoutMs, 10);
     final long startNs = System.nanoTime();
     final long timeoutNs = TimeUnit.MILLISECONDS.toNanos(timeoutMs);
 
-    while (predicate.getAsBoolean() && ((System.nanoTime() - startNs) < timeoutNs)) {
+    boolean result;
+
+    while ((result = predicate.getAsBoolean()) && ((System.nanoTime() - startNs) < timeoutNs)) {
 
       if (Thread.interrupted()) {
-        throw new InterruptedException("Busy waiting interrupted.");
+        throw new NoStackTraceInterruptedException("Busy waiting interrupted.");
       }
 
       // Busy wait.
+      Thread.sleep(sleepMs);
     }
+
+    return result;
   }
 
-  public static void sleepUnchecked(final long timeoutMs) {
+  public static void uncheckedSleep(final long timeoutMs) {
     try {
       sleep(timeoutMs);
     } catch (final InterruptedException e) {
-      throw new InterruptedError(e);
+      throw new NoStackTraceInterruptedError(e);
     }
   }
 
@@ -45,15 +53,33 @@ public final class SleepUtils {
    * Some threads or tasks should never be interrupted, so interruption should be an unchecked
    * {@link Error}.
    */
-  public static final class InterruptedError extends Error {
-    public InterruptedError(final InterruptedException cause) {
+  private static final class NoStackTraceInterruptedError extends Error {
+    private NoStackTraceInterruptedError(final InterruptedException cause) {
       super(cause);
       Thread.currentThread().interrupt();
     }
 
-    public InterruptedError(final String message, final InterruptedException cause) {
+    private NoStackTraceInterruptedError(final String message, final InterruptedException cause) {
       super(message, cause);
       Thread.currentThread().interrupt();
+    }
+
+    @Override
+    public synchronized Throwable fillInStackTrace() {
+      // Avoid costly stack trace generation.
+      return this;
+    }
+  }
+
+  private static final class NoStackTraceInterruptedException extends InterruptedException {
+    private NoStackTraceInterruptedException(final String message) {
+      super(message);
+    }
+
+    @Override
+    public synchronized Throwable fillInStackTrace() {
+      // Avoid costly stack trace generation.
+      return this;
     }
   }
 

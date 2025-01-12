@@ -16,6 +16,7 @@ import dev.stiemannkj1.util.Assert;
 import dev.stiemannkj1.util.References.LongRef;
 import dev.stiemannkj1.util.Require;
 import dev.stiemannkj1.util.WithReusableStringBuilder;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
@@ -81,9 +82,80 @@ public final class Namespacer {
     }
   }
 
+  /**
+   * @see #namespaceClassFile(ObjectPool, String, GrowableByteArray, Map, GrowableByteArray)
+   *     <p>Namespaces the provided class file or throws if the class file is invalid.
+   * @param objectPool the object pool to use when namespacing.
+   * @param fileName the class file name being namespaced.
+   * @param classFileBefore the bytes of the class file prior to being namespaced.
+   * @param replacementsMap the map of replacements to perform.
+   * @param classFileAfter the buffer to write the namespaced bytes of the class file.
+   * @return classFileAfter with the bytes of the class file namespaced class file in it.
+   * @throws IOException when the provided class file is invalid.
+   */
+  public static GrowableByteArray namespaceClassFileOrThrow(
+      final ObjectPool objectPool,
+      final String fileName,
+      final GrowableByteArray classFileBefore,
+      final Map<String, String> replacementsMap,
+      final GrowableByteArray classFileAfter)
+      throws IOException {
+    return namespaceClassFileOrThrow(
+        false, objectPool, fileName, classFileBefore, replacementsMap, classFileAfter);
+  }
+
+  /**
+   * @see #namespaceClassFile(ObjectPool, String, GrowableByteArray, Map, GrowableByteArray)
+   *     <p>Namespaces the provided class file or throws if the class file is invalid.
+   * @param includeStackTraceOnException includes the stack trace when the provided class file is
+   *     invalid. NOTE: calculating the stack trace is expensive and likely won't provide much
+   *     useful information since exceptions indicate an invalid class file. This value should be
+   *     false unless you are debugging, testing, or evaluating problems in the namespacer.
+   * @param objectPool the object pool to use when namespacing.
+   * @param fileName the class file name being namespaced.
+   * @param classFileBefore the bytes of the class file prior to being namespaced.
+   * @param replacementsMap the map of replacements to perform.
+   * @param classFileAfter the buffer to write the namespaced bytes of the class file.
+   * @return classFileAfter with the bytes of the class file namespaced class file in it.
+   * @throws IOException when the provided class file is invalid.
+   */
+  public static GrowableByteArray namespaceClassFileOrThrow(
+      final boolean includeStackTraceOnException,
+      final ObjectPool objectPool,
+      final String fileName,
+      final GrowableByteArray classFileBefore,
+      final Map<String, String> replacementsMap,
+      final GrowableByteArray classFileAfter)
+      throws IOException {
+
+    final String result =
+        namespaceClassFile(objectPool, fileName, classFileBefore, replacementsMap, classFileAfter);
+
+    if (result != null) {
+      throw new IOException(result) {
+        @Override
+        public synchronized Throwable fillInStackTrace() {
+          return includeStackTraceOnException ? super.fillInStackTrace() : this;
+        }
+      };
+    }
+
+    return classFileAfter;
+  }
+
+  /**
+   * Namespaces the provided class file or returns an error message string if the provided class
+   * file was invalid.
+   *
+   * @param objectPool the object pool to use when namespacing.
+   * @param fileName the class file name being namespaced.
+   * @param classFileBefore the bytes of the class file prior to being namespaced.
+   * @param replacementsMap the map of replacements to perform.
+   * @param classFileAfter the buffer to write the namespaced bytes of the class file.
+   * @return an error message if the provided class file was invalid.
+   */
   // TODO add fuzzer tests where constant is random values and constant length is invalid and
   // constant is not value UTF8
-  // TODO create override that throws exception (IOException?).
   @SuppressWarnings("DuplicateBranchesInSwitch")
   public static String namespaceClassFile(
       final ObjectPool objectPool,

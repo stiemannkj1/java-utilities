@@ -1,7 +1,6 @@
 package dev.stiemannkj1.bytecode.namespacer;
 
 import static dev.stiemannkj1.util.Assert.assertAsciiPrintable;
-import static dev.stiemannkj1.util.Assert.assertNotEmpty;
 import static dev.stiemannkj1.util.Assert.assertNotNull;
 import static dev.stiemannkj1.util.StringUtils.appendHexString;
 import static dev.stiemannkj1.util.StringUtils.isAsciiPrintable;
@@ -25,6 +24,7 @@ import java.util.List;
  * java -cp build/generated dev.stiemannkj1.bytecode.namespacer.NamespacerTablesGenerator src/main/java
  * }</pre>
  */
+@SuppressWarnings("StringRepeatCanBeUsed")
 public final class NamespacerTablesGenerator {
 
   private static final int MAX_CHAR_LENGTH = "\\u0000".length();
@@ -33,7 +33,30 @@ public final class NamespacerTablesGenerator {
 
     System.setProperty(Assert.ASSERT_ENABLED_PROPERTY_NAME, "true");
 
+    if (args.length < 1 || args[0] == null) {
+      throw new IllegalArgumentException("You must provide the Java source dir.");
+    }
+
+    final File parentDir = new File(args[0]);
+
+    if (!(parentDir.exists()
+        && parentDir.isDirectory()
+        && parentDir.canRead()
+        && parentDir.canWrite()
+        && parentDir.canExecute())) {
+      throw new IllegalArgumentException(
+          "The Java source dir was not a writeable directory: " + parentDir.getAbsolutePath());
+    }
+
     final String packageName = NamespacerTablesGenerator.class.getPackage().getName();
+    final File packageDir = new File(parentDir, packageName.replace('.', File.separatorChar));
+    final File currentFile =
+        new File(packageDir, NamespacerTablesGenerator.class.getSimpleName() + ".java");
+
+    if (!currentFile.exists()) {
+      throw new IllegalArgumentException(
+          "The Java source dir did not contain the Java source: " + parentDir.getAbsolutePath());
+    }
 
     final StringBuilder stringBuilder =
         new StringBuilder()
@@ -45,24 +68,20 @@ public final class NamespacerTablesGenerator {
             .append("@GeneratedBy(\"")
             .append(NamespacerTablesGenerator.class.getTypeName())
             .append("\")\n")
-            .append("final class NamespacerTablesGenerated {\n\n");
+            .append("final class NamespacerTablesGenerated {\n");
 
-    stringBuilder
-        .append("    /**\n")
-        .append(
-            "     * Lookup table to determine if an ASCII character is a valid Java ClassTypeSignature as described\n")
-        .append("     * in the JVM spec section 4.7.9.1 Signatures\n")
-        .append(
-            "     * (https://docs.oracle.com/javase/specs/jvms/se22/html/jvms-4.html#jvms-ClassTypeSignature).\n")
-        .append("     *\n")
-        .append(
-            "     * <p>NOTE: this table also allows '$' (which is not allowed in the spec) so that code can be\n")
-        .append(
-            "     * reused for class names, file names, internal class names, and class type signatures. The\n")
-        .append(
-            "     * namespacer avoids strictly validating strings and signatures for the sake of performance.\n")
-        .append("     */\n")
-        .append("     static boolean[] ASCII_CLASS_TYPE_SIGNATURE_CHARS = new boolean[] {\n");
+    stringBuilder.append(
+        "\n"
+            + "    /**\n"
+            + "     * Lookup table to determine if an ASCII character is a valid Java ClassTypeSignature as described\n"
+            + "     * in the JVM spec section 4.7.9.1 Signatures\n"
+            + "     * (https://docs.oracle.com/javase/specs/jvms/se22/html/jvms-4.html#jvms-ClassTypeSignature).\n"
+            + "     *\n"
+            + "     * <p>NOTE: this table also allows '$' (which is not allowed in the spec) so that code can be\n"
+            + "     * reused for class names, file names, internal class names, and class type signatures. The\n"
+            + "     * namespacer avoids strictly validating strings and signatures for the sake of performance.\n"
+            + "     */\n"
+            + "     static boolean[] ASCII_CLASS_TYPE_SIGNATURE_CHARS = new boolean[] {\n");
 
     final int asciiClassTypeSignatureCharsLength = 128;
 
@@ -238,16 +257,15 @@ public final class NamespacerTablesGenerator {
 
     stringBuilder.append("    private NamespacerTablesGenerated() {}\n").append("}\n");
 
+    final File generatedTablesFile = new File(packageDir, "NamespacerTablesGenerated.java");
+
     Files.write(
-        new File(
-                new File(
-                    assertNotEmpty(assertNotEmpty(args)[0]),
-                    packageName.replace('.', File.separatorChar)),
-                "NamespacerTablesGenerated.java")
-            .toPath(),
+        generatedTablesFile.toPath(),
         stringBuilder.toString().getBytes(StandardCharsets.UTF_8),
         StandardOpenOption.CREATE,
         StandardOpenOption.TRUNCATE_EXISTING);
+
+    System.out.println("Generated: " + generatedTablesFile.getAbsolutePath());
   }
 
   private static <T> T[] sort(final T[] array) {

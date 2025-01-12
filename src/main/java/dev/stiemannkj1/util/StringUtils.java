@@ -48,6 +48,9 @@ public final class StringUtils {
    * startsWith(string, "META-INF/services/", "META-INF/".length());
    * }</pre>
    *
+   * <p>Note that OpenJDK 22+ has vectorized {@link String#startsWith(String, int)} which means that
+   * this method could be slower than {@link String#startsWith(String)} on newer JDKs.
+   *
    * @param string the string to search.
    * @param prefix the prefix to search for. <strong>NOTE:</strong> the <strong>entire</strong>
    *     prefix must match for this method to return true.

@@ -1,6 +1,6 @@
 package dev.stiemannkj1.util;
 
-import static dev.stiemannkj1.util.SleepUtils.busyWait;
+import static dev.stiemannkj1.util.SleepUtils.busyWaitUntil;
 import static dev.stiemannkj1.util.StringUtils.readUtf8String;
 
 import java.io.File;
@@ -53,17 +53,13 @@ public final class ProcessUtils {
 
     final Process process = processBuilder.start();
 
-    busyWait(process::isAlive, timeoutMs);
-
-    if (!process.isAlive()) {
+    if (!busyWaitUntil(process::isAlive, timeoutMs)) {
       return new Result(process.exitValue(), stdout, stderr);
     }
 
     process.destroy();
 
-    busyWait(process::isAlive, shutdownTimeoutNs);
-
-    if (process.isAlive()) {
+    if (busyWaitUntil(process::isAlive, shutdownTimeoutNs)) {
       process.destroyForcibly();
     }
 

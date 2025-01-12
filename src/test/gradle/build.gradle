@@ -16,7 +16,6 @@ dependencies {
     namespace fileTree(dir: findProperty("namespacer.libs.path"), include: "*.jar")
 }
 
-// TODO create an integration test that downloads and installs Gradle using gradlew and runs this task and then runs the JAR to prove that everything works.
 tasks.namespaceJars {
     doFirst {
         // Only for testing.

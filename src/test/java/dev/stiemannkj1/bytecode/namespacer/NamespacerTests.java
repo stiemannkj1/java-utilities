@@ -32,14 +32,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 final class NamespacerTests {
   public static final int INITIAL_CLASS_ARRAY_CAPACITY = 1 << 16;
-  // TODO namespace and merge class names in META-INF/services and META-INF/groovy
+  // TODO namespace and merge class names in META-INF/groovy
   // TODO handle manifest and properties files. Merging properties should probably require users to
   // handle conflicts by creating a properties file with any conflicting properties.
-  // TODO consider merging Xml files
-  // TODO instead of handling all the merging, only merge binary files if they exist, maybe handle
+  // TODO instead of handling all the merging, only handle binary files if they exist, maybe handle
   // log4j, but maybe not
-  // plugin should auto-fail on conflicts and require explicitly choosing from the provided jars or
-  // providing a deconflicted file in the project.
 
   public static final class Before {
     public static List<String> strings() {
@@ -1131,7 +1128,8 @@ final class NamespacerTests {
         }
       }
 
-      map.put((K) "foo", (V[]) new Foo[] {new Foo()});
+      @SuppressWarnings("unchecked")
+      final V[] ignored = map.put((K) "foo", (V[]) new Foo[] {new Foo()});
       return map;
     }
 
