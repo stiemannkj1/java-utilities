@@ -32,11 +32,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 final class NamespacerTests {
   public static final int INITIAL_CLASS_ARRAY_CAPACITY = 1 << 16;
-  // TODO namespace and merge class names in META-INF/groovy
-  // TODO handle manifest and properties files. Merging properties should probably require users to
-  // handle conflicts by creating a properties file with any conflicting properties.
-  // TODO instead of handling all the merging, only handle binary files if they exist, maybe handle
-  // log4j, but maybe not
 
   public static final class Before {
     public static List<String> strings() {

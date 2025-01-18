@@ -45,6 +45,8 @@ public final class NamespacerMainTests {
     final long timestampMs = Instant.parse("2000-01-01T00:00:00.00Z").toEpochMilli();
     final File jar1File = new File(tempDir, "jar1.jar");
 
+    // TODO maybe handle log4j, but maybe not
+
     try (OutputStream outputStream = Files.newOutputStream(jar1File.toPath());
         BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(outputStream);
         ZipOutputStream jarOutputStream = new ZipOutputStream(bufferedOutputStream)) {
@@ -93,6 +95,11 @@ public final class NamespacerMainTests {
       writeEntryForClass(jarOutputStream, MyService.class, timestampMs + 24_000);
       writeEntryForClass(jarOutputStream, MyServiceImpl1.class, timestampMs + 26_000);
       writeEntryForClass(jarOutputStream, MyServiceImpl2.class, timestampMs + 28_000);
+      writeEntry(
+          jarOutputStream,
+          "META-INF/groovy/dev.stiemannkj1.bytecode.namespacer.NamespacerMainTests$MyService",
+          MyServiceImpl1.class.getTypeName().getBytes(StandardCharsets.UTF_8),
+          timestampMs + 30_000);
     }
 
     final Map<String, String> replacements = new HashMap<>();
@@ -179,6 +186,8 @@ public final class NamespacerMainTests {
             "foo/bar/MyServiceImpl2.class",
             timestampMs + 28_000,
             "foo.bar."));
+    expectedEntries.addLast(
+        new ExpectedEntry(null, "META-INF/groovy/foo.bar.MyService", timestampMs + 30_000, null));
 
     try (InputStream inputStream = Files.newInputStream(namespacedJar.toPath());
         BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream);
@@ -243,6 +252,21 @@ public final class NamespacerMainTests {
               "foo.bar.MyServiceImpl2",
               KeepNamespaceTestServiceImpl.class.getTypeName()),
           actualServiceStrings);
+
+      final String groovyServiceName;
+
+      try (InputStream groovyServiceFile =
+          classLoader.getResourceAsStream("META-INF/groovy/foo.bar.MyService")) {
+        groovyServiceName =
+            new String(assertNotNull(groovyServiceFile).readAllBytes(), StandardCharsets.UTF_8);
+      }
+
+      assertEquals(
+          "foo.bar.MyServiceImpl1",
+          assertNotNull(
+                  assertNotEmpty(classLoader.loadClass(groovyServiceName).getConstructors())[0])
+              .newInstance()
+              .toString());
     }
 
     assertTrue(

@@ -1,5 +1,6 @@
 package dev.stiemannkj1.bytecode.namespacer;
 
+import static dev.stiemannkj1.bytecode.namespacer.Namespacer.META_INF_GROOVY;
 import static dev.stiemannkj1.bytecode.namespacer.Namespacer.META_INF_SERVICES;
 import static dev.stiemannkj1.bytecode.namespacer.Namespacer.ObjectPool.DEFAULT_MAX_CLASS_FILE_MAJOR_VERSION;
 import static dev.stiemannkj1.bytecode.namespacer.Namespacer.ObjectPool.initializeReplacements;
@@ -176,7 +177,9 @@ public final class NamespacerMain {
         final boolean serviceFile =
             StringUtils.startsWith(name, META_INF_SERVICES, SERVICES_START_INDEX_UNDER_META_INF)
                 || StringUtils.startsWith(
-                    name, WEB_INF_SERVICES, SERVICES_START_INDEX_UNDER_WEB_INF);
+                    name, WEB_INF_SERVICES, SERVICES_START_INDEX_UNDER_WEB_INF)
+                || StringUtils.startsWith(
+                    name, META_INF_GROOVY, SERVICES_START_INDEX_UNDER_META_INF);
 
         for (int i = 0; i < objectPool.namespacer.replacements.paths; i++) {
 

@@ -27,6 +27,7 @@ import java.util.Set;
 public final class Namespacer {
 
   public static final String META_INF_SERVICES = "META-INF/services/";
+  public static final String META_INF_GROOVY = "META-INF/groovy/";
   public static final int SERVICES_START_INDEX_UNDER_META_INF = "META-INF/".length();
   public static final String WEB_INF_CLASSES = "WEB-INF/classes/";
   public static final String WEB_INF_SERVICES = "WEB-INF/classes/META-INF/services/";
@@ -784,9 +785,9 @@ public final class Namespacer {
         // TODO Class files use modified UTF-8 and therefore don't support 4-byte values. Add tests
         // with 2, 3, and 4 byte values and fix this code to support modified UTF-8.
         size = 4;
-      } else if ((0b11100000 & currentChar) == 0b11100000) {
+      } else if ((0b011100000 & currentChar) == 0b11100000) {
         size = 3;
-      } else if ((0b11000000 & currentChar) == 0b11000000) {
+      } else if ((0b0011000000 & currentChar) == 0b11000000) {
         size = 2;
       }
 
@@ -1226,7 +1227,7 @@ public final class Namespacer {
         replacements.after = new byte[replacementsSize][];
         replacements.beforeClassNames = new byte[replacements.classNameReplacements][];
         replacements.afterClassNames = new byte[replacements.classNameReplacements][];
-        final int paths = replacementsMap.size() * 4;
+        final int paths = replacementsMap.size() * 8;
         replacements.beforePath = new String[paths];
         replacements.afterPath = new String[paths];
       }
@@ -1268,6 +1269,23 @@ public final class Namespacer {
 
         replacements.before[i] = prependAscii(true, META_INF_SERVICES, beforeWithPeriods);
         replacements.after[i] = prependAscii(true, META_INF_SERVICES, afterWithPeriods);
+
+        i++;
+
+        replacements.before[i] = prependAscii(META_INF_GROOVY, beforeWithPeriods);
+        replacements.after[i] = prependAscii(META_INF_GROOVY, afterWithPeriods);
+
+        replacements.beforePath[replacements.paths] =
+            new String(replacements.before[i], StandardCharsets.UTF_8);
+        replacements.afterPath[replacements.paths] =
+            new String(replacements.after[i], StandardCharsets.UTF_8);
+
+        replacements.paths++;
+
+        i++;
+
+        replacements.before[i] = prependAscii(true, META_INF_GROOVY, beforeWithPeriods);
+        replacements.after[i] = prependAscii(true, META_INF_GROOVY, afterWithPeriods);
 
         i++;
 
