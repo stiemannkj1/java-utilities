@@ -4,6 +4,21 @@ Assorted Java utilities.
 
 ## Using
 
+### `FileServer.java`
+
+`FileServer.java` is a Java file server and receiver which depends solely on JDK 11+:
+
+```sh
+# Download via jshell:
+printf 'import java.net.http.*;HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create("https://raw.githubusercontent.com/stiemannkj1/java-utilities/refs/heads/master/src/main/java/stiemannkj1/FileServer.java")).build(),HttpResponse.BodyHandlers.ofFile(Path.of(System.getProperty("user.home")+"/Downloads/FileServer.java")));' | jshell -
+# Or download via curl:
+# curl -o ~/Downloads/FileServer.java 'https://raw.githubusercontent.com/stiemannkj1/java-utilities/refs/heads/master/src/main/java/stiemannkj1/FileServer.java'
+# Run from source:
+java ~/Downloads/FileServer.java
+```
+
+### Utilities Jar
+
 [![Release](https://jitpack.io/v/stiemannkj1/java-utilities.svg)](https://jitpack.io/#java-utilities)
 
 Add the project as a Gradle dependency via [jitpack.io](https://jitpack.io/):
