@@ -66,7 +66,7 @@ gradle test
 Format source with:
 
 ```
-gradle spotlessApply
+java -jar vendor/google-java-format-*.jar --replace stiemannkj1/**.java
 ```
 
 Run all checks and tests with:
