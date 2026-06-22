@@ -1,79 +1,70 @@
-# Java Utilities
+# `SJK.java`
 
-Assorted Java utilities.
+SJK is a "Software Joy Kit" for Java. It is a single Java file which depends
+solely on JDK 8 to simplify Java development and supplement the JDK.
 
-## Using
+## Usage
 
-### `FileServer.java`
-
-`FileServer.java` is a Java file server and receiver which depends solely on JDK 11+:
+Download via `jshell`:
 
 ```sh
-# Download via jshell:
-printf 'import java.net.http.*;HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create("https://raw.githubusercontent.com/stiemannkj1/java-utilities/refs/heads/master/src/main/java/stiemannkj1/FileServer.java")).build(),HttpResponse.BodyHandlers.ofFile(Path.of(System.getProperty("user.home")+"/Downloads/FileServer.java")));' | jshell -
-# Or download via curl:
-# curl -o ~/Downloads/FileServer.java 'https://raw.githubusercontent.com/stiemannkj1/java-utilities/refs/heads/master/src/main/java/stiemannkj1/FileServer.java'
-# Run from source:
-java ~/Downloads/FileServer.java
+printf 'import java.net.http.*;HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create("https://raw.githubusercontent.com/stiemannkj1/java-utilities/refs/heads/master/stiemannkj1/SJK.java")).build(),HttpResponse.BodyHandlers.ofFile(Path.of(System.getProperty("user.home")+"/Downloads/SJK.java")));' | jshell -
 ```
 
-### Utilities Jar
+Or download via `curl`:
 
-[![Release](https://jitpack.io/v/stiemannkj1/java-utilities.svg)](https://jitpack.io/#java-utilities)
-
-Add the project as a Gradle dependency via [jitpack.io](https://jitpack.io/):
-
-```
-maven {
-  url "https://jitpack.io" 
-  content { includeGroup "com.github.stiemannkj1" }
-}
-
-// Avoid dependency confusion attacks for other repos by excluding this group
-// from them. For example, avoid resolving dependencies from this group for
-// mavenCentral:
-mavenCentral {
-  content { excludeGroupByRegex "com[.]github[.]stiemannkj1.*" }
-}
-
-implementation 'com.github.stiemannkj1:java-utilities:0.5.0'
+```sh
+curl -o ~/Downloads/SJK.java 'https://raw.githubusercontent.com/stiemannkj1/java-utilities/refs/heads/master/stiemannkj1/SJK.java'
 ```
 
-## Building
+Run from source to see CLI usage:
 
-Install Java 11 and Gradle 7. If you already have another version of Gradle
-installed, you can install the correct version of Gradle via:
-
-```
-gradle wrapper
+```sh
+java ~/Downloads/SJK.java
 ```
 
-If you use Gradle Wrapper to build the project, you'll need to use `./gradlew`
-instead of `gradle` in the following commands.
+To add `SJK.java` as a dependency to your project, simply create a folder under
+your source directory named `stiemannkj1/` and add it to that folder:
+`stiemannkj1/SJK.java`.
 
-Build a `.jar` with:
+Run a file server:
 
-```
-gradle assemble
-```
-
-Run tests with:
-
-```
-gradle test
+```sh
+java ~/Downloads/SJK.java fileServer --port 8080
 ```
 
-Format source with:
+Download a file:
+
+```sh
+java ~/Downloads/SJK.java --download https://stiemannkj1.gitlab.com/output.txt output.txt
+```
+
+Upload a file:
+
+```sh
+java ~/Downloads/SJK.java --upload source.txt https://stiemannkj1.gitlab.com/source.txt
+```
+
+Build a `.jar`:
+
+```sh
+java ~/Downloads/SJK.java javac --clean --release 8 --manifest 'Main-Class: stiemannkj1.SJK' ./stiemannkj1 build/ --jar build/sjk.jar
+```
+
+Run tests:
+
+```
+java ~/Downloads/SJK.java fileServerTest
+```
+
+Format source:
 
 ```
 java -jar vendor/google-java-format-*.jar --replace stiemannkj1/**.java
 ```
 
-Run all checks and tests with:
-
-```
-gradle check
-```
+* TODO add code to generate `sjk` and `sjk.bat` and add them to `.gitignore`.
+* TODO Add symlink for formatter jar to avoid relying on wildcards.
 
 ## License
 

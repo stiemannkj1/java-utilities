@@ -18,6 +18,7 @@ import static java.net.HttpURLConnection.HTTP_BAD_REQUEST;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_CREATED;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static stiemannkj1.SJK.Check.isBlank;
 import static stiemannkj1.SJK.Check.isEmpty;
 import static stiemannkj1.SJK.Check.isNotNull;
@@ -25,17 +26,19 @@ import static stiemannkj1.SJK.FileServer.FileHandler.Type.DOWNLOAD;
 import static stiemannkj1.SJK.FileServer.FileHandler.Type.UPLOAD;
 import static stiemannkj1.SJK.IO.DEFAULT_ATOMIC_ATTEMPTS;
 import static stiemannkj1.SJK.IO.DEFAULT_BUF_SIZE;
-import static stiemannkj1.SJK.IO.DEFAULT_MAX_FOLLOW_SYMLINKS;
 import static stiemannkj1.SJK.IO.Deleter.DELETER;
 import static stiemannkj1.SJK.IO.Operation.CREATE_DIR;
 import static stiemannkj1.SJK.IO.Operation.CREATE_FILE;
 import static stiemannkj1.SJK.IO.Operation.RENAME_TO;
-import static stiemannkj1.SJK.IO.copy;
+import static stiemannkj1.SJK.IO.copyAll;
 import static stiemannkj1.SJK.IO.deleteRecursively;
 import static stiemannkj1.SJK.IO.handleNonRegularFiles;
 import static stiemannkj1.SJK.IO.mkdirs;
-import static stiemannkj1.SJK.IO.write;
-import static stiemannkj1.SJK.Strings.decapitalize;
+import static stiemannkj1.SJK.IO.readAllAsString;
+import static stiemannkj1.SJK.IO.writeAll;
+import static stiemannkj1.SJK.Numbers.nextMultOf2;
+import static stiemannkj1.SJK.Packager.zip;
+import static stiemannkj1.SJK.Strings.appendDecapitalized;
 import static stiemannkj1.SJK.Strings.stripPrefix;
 import static stiemannkj1.SJK.ThreadUnsafeStorage.THREAD_LOCALS;
 import static stiemannkj1.SJK.net.downloadFile;
@@ -46,14 +49,17 @@ import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -62,6 +68,7 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.URL;
@@ -69,8 +76,10 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CoderResult;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -81,20 +90,25 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
+import java.util.jar.Attributes;
+import java.util.jar.Manifest;
 import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -104,7 +118,12 @@ import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
+
 import stiemannkj1.SJK.IO.AtomicFile;
+import stiemannkj1.SJK.IO.BufOutputStream;
+import stiemannkj1.SJK.IO.DynBuf;
+import stiemannkj1.SJK.IO.FileAttrConfig;
+import stiemannkj1.SJK.IO.TruncatingFileOutputStream;
 
 /**
  * SJK is a "Software Joy Kit" for Java. It is a single Java file which depends solely on JDK 8 to
@@ -127,8 +146,9 @@ public final class SJK {
   public static final boolean JAVA_9_AND_UP;
 
   private static final String SJK_DEBUG_PORT = "SJK_DEBUG_PORT";
-  private static final String SJK_DEBUG_PORT_USAGE =
-      SJK_DEBUG_PORT
+  private static final String SJK_CHILD_DEBUG_PORT = "SJK_CHILD_DEBUG_PORT";
+  private static final String SJK_CHILD_DEBUG_PORT_USAGE =
+      SJK_CHILD_DEBUG_PORT
           + "\n"
           + "\tThe port to use for remote debugging when this command starts a child Java"
           + " process.\n\n";
@@ -172,13 +192,31 @@ public final class SJK {
     throw new IllegalStateException("Unexpected case: " + unhandledEnumValue.name());
   }
 
-  public static <C extends Collection<String>> C addJavaDebugArgIfSpecified(
-      C args, boolean suspend) {
+  public static <T extends AccessibleObject> T setAccessible(T t) {
+    t.setAccessible(true);
+    return t;
+  }
 
-    String debugPort = System.getenv(SJK_DEBUG_PORT);
+  public static <C extends Collection<String>> C addJavaDebugArgIfSpecified(
+      String debugPortEnvName, boolean suspend, C args) {
+
+    String debugPort = System.getenv(debugPortEnvName);
 
     if (isEmpty(debugPort)) {
       return args;
+    }
+
+    return addJavaDebugArg(debugPort, suspend, args);
+  }
+
+  public static <C extends Collection<String>> C addJavaDebugArg(
+      String debugPort, boolean suspend, C args) {
+
+    for (String arg : args) {
+      if (arg.startsWith("-agentlib:jdwp")) {
+        // Debugger was already specified.
+        return args;
+      }
     }
 
     String debugArg = "-agentlib:jdwp=transport=dt_socket,server=y,suspend=";
@@ -189,12 +227,7 @@ public final class SJK {
       debugArg += "n";
     }
 
-    debugArg += ",address=";
-
-    if (JAVA_9_AND_UP) {
-      debugArg += "*:";
-    }
-
+    debugArg += ",address=0.0.0.0:";
     debugArg += debugPort;
     args.add(debugArg);
 
@@ -207,6 +240,73 @@ public final class SJK {
 
   private static int runMainClass(String[] args) {
 
+    String portString = System.getenv(SJK_DEBUG_PORT);
+
+    if (portString != null) {
+
+      // If you are enabling the debugger, then you are accepting that there will be a performance
+      // hit. So start a new process (using the same args) but add the required debug args so that
+      // devs don't need to memorize the arcane agentlib args required for debugging Java.
+      System.err.println("Starting Java process with debugger enabled at: " + portString);
+
+      try {
+        // Use reflection to invoke Java 9+ APIs so that the code is still compilable with Java 8.
+        Class<?> procHandleClass = Class.forName("java.lang.ProcessHandle");
+        Object current = setAccessible(procHandleClass.getDeclaredMethod("current")).invoke(null);
+        Object info = setAccessible(procHandleClass.getDeclaredMethod("info")).invoke(current);
+        @SuppressWarnings("unchecked")
+        String[] ignored =
+            args =
+                ((Optional<String[]>)
+                        setAccessible(
+                                Class.forName("java.lang.ProcessHandle$Info")
+                                    .getDeclaredMethod("arguments"))
+                            .invoke(info))
+                    .orElse(null);
+      } catch (ReflectiveOperationException | ClassCastException e) {
+        System.err.println(SJK_DEBUG_PORT + " may only be used on Java 9+ JREs/JDKs.");
+        return 1;
+      }
+
+      if (args == null) {
+        System.err.println(
+            "Failed to enable debugging via "
+                + SJK_DEBUG_PORT
+                + ". Could not obtain arguments for the current process.");
+        return 1;
+      }
+
+      List<String> argsList = new ArrayList<>(args.length + 2);
+      argsList.add(System.getProperty("java.home") + "/bin/java");
+      addJavaDebugArg(portString, true, argsList);
+      argsList.addAll(Arrays.asList(args));
+      ProcessBuilder bldr = new ProcessBuilder().inheritIO().command(argsList);
+
+      // Avoid recursively debugging.
+      bldr.environment().remove(SJK_DEBUG_PORT);
+
+      try {
+        // TODO add a closeable process that automatically destroys the process on close.
+        Process proc = bldr.start();
+        // TODO register single shutdown hook for deleting dirs, destroying procs etc.
+        Runtime.getRuntime()
+            .addShutdownHook(
+                new Thread(
+                    () -> {
+                      if (proc.isAlive()) {
+                        proc.destroyForcibly();
+                      }
+                    }));
+        return proc.waitFor();
+      } catch (IOException | InterruptedException e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
+        return 1;
+      }
+    }
+
+    StringBuilder sb = new StringBuilder();
     Map<String, Method> tools = new TreeMap<>();
 
     for (Class<?> nested : SJK.class.getDeclaredClasses()) {
@@ -218,7 +318,8 @@ public final class SJK {
           continue;
         }
 
-        tools.put(decapitalize(nested.getSimpleName()), method);
+        sb.setLength(0);
+        tools.put(appendDecapitalized(sb, nested.getSimpleName()).toString(), method);
       } catch (ReflectiveOperationException e) {
         // no_op;
       }
@@ -234,7 +335,7 @@ public final class SJK {
 
     if (mainMethod == null) {
 
-      StringBuilder sb = new StringBuilder();
+      sb.setLength(0);
 
       if (requestedTool != null) {
         sb.append("Invalid tool requested: ").append(requestedTool).append("\n\n");
@@ -291,18 +392,19 @@ public final class SJK {
       return str;
     }
 
-    public static String decapitalize(String str) {
+    public static StringBuilder appendDecapitalized(StringBuilder sb, String str) {
       if (isEmpty(str)) {
-        return str;
+        return sb;
       }
 
-      return Character.toLowerCase(str.charAt(0)) + str.substring(1);
+      return sb.append(Character.toLowerCase(str.charAt(0))).append(str, 1, str.length());
     }
 
     public static int parseInt(String possibleInt, int defaultValue) {
       try {
         return Integer.parseInt(possibleInt);
       } catch (NumberFormatException e) {
+        // TODO avoid exceptions
         return defaultValue;
       }
     }
@@ -361,8 +463,18 @@ public final class SJK {
       return isNull(str) || str.length() == 0;
     }
 
-    public static boolean isBlank(String str) {
-      return isEmpty(str) || str.isBlank();
+    public static <T extends CharSequence> boolean isBlank(T str) {
+      if (isEmpty(str)) {
+        return true;
+      }
+
+      for (int i = 0; i < str.length(); i++) {
+        if (!Character.isWhitespace(str.charAt(i))) {
+          return false;
+        }
+      }
+
+      return true;
     }
 
     private Check() {}
@@ -403,7 +515,7 @@ public final class SJK {
     }
 
     public static String nonBlank(String str) {
-      if (nonEmpty(str).isBlank()) {
+      if (isBlank(nonEmpty(str))) {
         throw new IllegalStateException("string must not be blank");
       }
 
@@ -451,7 +563,7 @@ public final class SJK {
     }
 
     public static File dir(File possibleDir) {
-      if (!possibleDir.isDirectory()) {
+      if (possibleDir.exists() && !possibleDir.isDirectory()) {
         throw new IllegalStateException(
             "file " + possibleDir.getAbsolutePath() + " must be a directory");
       }
@@ -464,8 +576,19 @@ public final class SJK {
       return possibleDir;
     }
 
+    public static File dirExists(File possibleDir) {
+      require.exists(possibleDir);
+      require.dir(possibleDir);
+      return possibleDir;
+    }
+
+    public static Path dirExists(Path possibleDir) {
+      dirExists(possibleDir.toFile());
+      return possibleDir;
+    }
+
     public static File file(File possibleFile) {
-      if (!possibleFile.isFile()) {
+      if (possibleFile.exists() && !possibleFile.isFile()) {
         throw new IllegalStateException(
             "file " + possibleFile.getAbsolutePath() + " must be a file");
       }
@@ -474,11 +597,24 @@ public final class SJK {
     }
 
     public static Path file(Path possibleFile) {
-      dir(possibleFile.toFile());
+      file(possibleFile.toFile());
+      return possibleFile;
+    }
+
+    public static File fileExists(File possibleFile) {
+      require.exists(possibleFile);
+      require.file(possibleFile);
+      return possibleFile;
+    }
+
+    public static Path fileExists(Path possibleFile) {
+      fileExists(possibleFile.toFile());
       return possibleFile;
     }
 
     public static File exists(File file) {
+      require.nonNull(file);
+
       if (!file.exists()) {
         throw new IllegalStateException("file " + file.getAbsolutePath() + " must exist");
       }
@@ -543,11 +679,20 @@ public final class SJK {
       return isTesting.get();
     }
 
+    private final PrintStream out;
     private final AssertionError failures;
     private final StringBuilder sb;
 
-    public Testing() {
-      this.failures = new AssertionError();
+    public Testing(PrintStream out) {
+      this.out = out;
+      this.failures =
+          new AssertionError() {
+            @Override
+            public synchronized Throwable fillInStackTrace() {
+              // Skip stacktrace generation.
+              return this;
+            }
+          };
       this.sb = new StringBuilder();
       isTesting.set(true);
     }
@@ -608,14 +753,33 @@ public final class SJK {
         throw failures;
       }
 
-      System.out.println("Tests passed.");
+      out.println("Tests passed.");
     }
+  }
+
+  public static final class Numbers {
+
+    public static int nextPowOf2(int n) {
+      return Integer.highestOneBit(n - 1) << 1;
+    }
+
+    public static int nextMultOf2(int n) {
+      return (n + 1) & ~1;
+    }
+
+    private Numbers() {}
+  }
+
+  public static final class empty {
+    private static final byte[] bytes = new byte[0];
+
+    private empty() {}
   }
 
   /**
    * IO and file operation utilities.
    *
-   * <p>Many file utilities have a {@code atomicAttempts} parameter. This indicates that the method
+   * <p>Many file utilities have an {@code atomicAttempts} parameter. This indicates that the method
    * can perform the action atomically. If a value greater than 0 is passed, the method will attempt
    * to create a temporary uniquely/randomly named file or directory a maximum of {@code
    * atomicAttempts} times. If the method succeeds in creating the temporary file or directory, it
@@ -626,10 +790,15 @@ public final class SJK {
    * files, partially deleted directories, partially copied directories, or other problematic
    * states. If those inconsistent states can harm the system or other processes or programs, atomic
    * operations should be used.
+   *
+   * <p>Operations named {@code copyAll}, {@code readAll}, and {@code writeAll} will copy all bytes
+   * unlike {@link InputStream#read(byte[])}, {@link
+   * java.nio.channels.ReadableByteChannel#read(ByteBuffer)}, and {@link
+   * java.nio.channels.WritableByteChannel#write(ByteBuffer)} which are not guaranteed to read/write
+   * all the bytes to/from the stream/file.
    */
   public static final class IO {
-    public static final int DEFAULT_BUF_SIZE = 8 * 1024;
-    public static final int DEFAULT_MAX_FOLLOW_SYMLINKS = 1;
+    public static final int DEFAULT_BUF_SIZE = 64 * 1024;
     public static final int DEFAULT_ATOMIC_ATTEMPTS = 16;
 
     public static final class SimpleError extends IOException {
@@ -652,69 +821,118 @@ public final class SJK {
       }
     }
 
-    public static long copy(InputStream is, OutputStream os, byte[] buf) throws IOException {
+    public static long copyAll(InputStream is, OutputStream os, byte[] buf) throws IOException {
 
       long total = 0;
+      int bufTotal;
+      int read = 0;
+
+      while (read >= 0) {
+
+        bufTotal = 0;
+
+        while ((read = is.read(buf, bufTotal, buf.length - bufTotal)) >= 0
+            && bufTotal < buf.length) {
+          bufTotal += read;
+        }
+
+        os.write(buf, 0, bufTotal);
+      }
+
+      return total;
+    }
+
+    public static long copyAll(Path file, OutputStream os, byte[] buf) throws IOException {
+      return copyAll(file.toFile(), os, buf);
+    }
+
+    public static long copyAll(File file, OutputStream os, byte[] buf) throws IOException {
+      try (InputStream is = new FileInputStream(file)) {
+        return copyAll(is, os, buf);
+      }
+    }
+
+    public static int copyAll(InputStream is, DynBuf buf) throws IOException {
+
+      int total = 0;
       int read;
 
-      while ((read = is.read(buf)) >= 0) {
-        os.write(buf, 0, read);
+      while ((read = buf.read(is)) >= 0) {
         total += read;
       }
 
       return total;
     }
 
-    public static long copy(Path file, OutputStream os, byte[] buf) throws IOException {
-      return copy(file.toFile(), os, buf);
-    }
-
-    public static long copy(File file, OutputStream os, byte[] buf) throws IOException {
-      try (InputStream is = new FileInputStream(file)) {
-        return copy(is, os, buf);
-      }
-    }
-
-    public static long copy(
+    /**
+     * Writes a string to a file with minimal allocations.
+     *
+     * @param str the string to write.
+     * @param encoder the encoder to use for the string. When in doubt, call {@link
+     *     Charset#newEncoder()} on {@link StandardCharsets#UTF_8}.
+     * @param off the offset into the string to start writing from.
+     * @param len the length of characters to write.
+     * @param channel the {@link FileChannel} of the file to write to.
+     * @param buf the buffer used to buffer the string bytes to reduce the number of IO syscalls.
+     * @return the length of string written.
+     * @throws IOException exceptions thrown by the encoder or IO calls.
+     */
+    public static long copyAll(
         CharSequence str,
         CharsetEncoder encoder,
         int off,
         int len,
-        WritableByteChannel channel,
+        FileChannel channel,
         ByteBuffer buf)
         throws IOException {
 
-      require.isTrue(buf.capacity() >= 4);
+      // Ensure that the at least 1 32-bit unicode code point can fit in the buffer.
+      require.isTrue(buf.capacity() >= Integer.BYTES);
+      require.isTrue(buf.isDirect());
 
       long total = 0;
-      encoder.reset();
 
       CharBuffer chars = CharBuffer.wrap(str);
       chars.position(off);
       chars.limit(len);
 
+      buf = buf.slice();
+
       while (chars.hasRemaining()) {
 
+        buf.position(0);
         CoderResult result = encoder.encode(chars, buf, true);
 
         if (result.isError()) {
           result.throwException();
         }
 
-        buf.reset();
-        total += channel.write(buf);
+        buf.limit(buf.position());
+        buf.position(0);
+        total += writeAll(buf, channel);
       }
 
+      buf.position(0);
       CoderResult result = encoder.flush(buf);
 
       if (result.isError()) {
         result.throwException();
       }
 
+      buf.limit(buf.position());
+      buf.position(0);
+
+      if (buf.remaining() > 0) {
+        total += channel.write(buf);
+      }
+
       return total;
     }
 
-    public static long write(
+    /**
+     * @see #copyAll(CharSequence, CharsetEncoder, int, int, FileChannel, ByteBuffer)
+     */
+    public static long writeAll(
         CharSequence str,
         CharsetEncoder encoder,
         int off,
@@ -726,25 +944,282 @@ public final class SJK {
       try (AtomicFile atomicFile = AtomicFile.orStandardFile(CREATE_FILE, file, atomicAttempts);
           FileChannel channel =
               FileChannel.open(atomicFile.file.toPath(), StandardOpenOption.WRITE)) {
-        return copy(str, encoder, off, len, channel, buf);
+        return copyAll(str, encoder, off, len, channel, buf);
       }
     }
 
-    public static long write(byte[] buf, int off, int len, File file, int atomicAttempts)
+    /**
+     * @see #copyAll(CharSequence, CharsetEncoder, int, int, FileChannel, ByteBuffer)
+     */
+    public static long writeAll(
+        CharSequence str, CharsetEncoder encoder, File file, ByteBuffer buf, int atomicAttempts)
+        throws IOException {
+      return writeAll(str, encoder, 0, str.length(), file, buf, atomicAttempts);
+    }
+
+    public static long writeAll(byte[] buf, int off, int len, File file, int atomicAttempts)
         throws IOException {
       try (AtomicFile atomicFile = AtomicFile.orStandardFile(CREATE_FILE, file, atomicAttempts);
-          OutputStream os = new FileOutputStream(atomicFile.file)) {
+          OutputStream os = new TruncatingFileOutputStream(atomicFile.file)) {
         os.write(buf, off, len);
       }
 
-      return len - off;
+      return len;
     }
 
-    public static long write(InputStream is, File file, byte[] buf, int atomicAttempts)
+    public static long writeAll(byte[] buf, File file, int atomicAttempts) throws IOException {
+      return writeAll(buf, 0, buf.length, file, atomicAttempts);
+    }
+
+    public static long writeAll(InputStream is, File file, byte[] buf, int atomicAttempts)
         throws IOException {
       try (AtomicFile atomicFile = AtomicFile.orStandardFile(CREATE_FILE, file, atomicAttempts);
-          OutputStream os = new FileOutputStream(atomicFile.file)) {
-        return copy(is, os, buf);
+          OutputStream os = new TruncatingFileOutputStream(atomicFile.file)) {
+        return copyAll(is, os, buf);
+      }
+    }
+
+    public static int writeAll(ByteBuffer buf, WritableByteChannel channel) throws IOException {
+
+      int total = 0;
+
+      while (buf.hasRemaining()) {
+        total = channel.write(buf);
+      }
+
+      return total;
+    }
+
+    public static int readAll(File file, DynBuf buf) throws IOException {
+      try (FileInputStream is = new FileInputStream(file)) {
+        return copyAll(is, buf);
+      }
+    }
+
+    public static String readAllAsString(File file, DynBuf buf, Charset charset)
+        throws IOException {
+      int start = buf.len;
+      int read = readAll(file, buf);
+      return buf.newString(charset, start, read);
+    }
+
+    public static int initBufSize(int reqLen) {
+      final int MIN_LEN = 1024;
+      return Math.max(nextMultOf2(reqLen), MIN_LEN);
+    }
+
+    /**
+     * Dynamic array which grows by doubling in size when necessary. Implements {@link OutputStream}
+     * and can be used as a faster, simpler replacement for {@link ByteArrayOutputStream}. This
+     * implementation is faster than {@link ByteArrayOutputStream} because it doesn't use
+     * unnecessary synchronization or allocations.
+     */
+    public static final class DynBuf extends OutputStream {
+
+      public byte[] buf;
+      public int len;
+      public int remaining;
+
+      public DynBuf(int reqLen) {
+        buf = reqLen > 0 ? new byte[initBufSize(reqLen)] : empty.bytes;
+        reset();
+      }
+
+      public DynBuf reset() {
+        len = 0;
+        remaining = buf.length;
+        return this;
+      }
+
+      public String newString(Charset charset, int off, int len) {
+        return new String(buf, off, len, charset);
+      }
+
+      public String newString(Charset charset) {
+        return new String(buf, 0, len, charset);
+      }
+
+      /**
+       * @param additionalLen the additional length needed.
+       * @return true if the additional length will fit into the buffer (regardless of whether the
+       *     buffer needed to grow or not).
+       */
+      public boolean growIfNeeded(int additionalLen) {
+
+        int reqLen = len + additionalLen;
+
+        if (reqLen < 0) {
+          return false;
+        }
+
+        if (buf.length < reqLen) {
+
+          byte[] old = buf;
+          int newLen = nextMultOf2(reqLen);
+
+          if (newLen < 0) {
+            return false;
+          }
+
+          buf = new byte[newLen];
+          System.arraycopy(old, 0, buf, 0, len);
+          remaining = buf.length - len;
+        }
+
+        return true;
+      }
+
+      public boolean growIfNeeded() {
+        return growIfNeeded(1);
+      }
+
+      /**
+       * Reads between 0 and {@link #remaining} bytes from the provided {@link InputStream}.
+       *
+       * @param is the {@link InputStream} to read from.
+       * @return the number of bytes read or -1 if the end-of-file (EOF) has been reached.
+       * @throws IOException any IO errors thrown by the {@link InputStream#read(byte[], int, int)}
+       *     call.
+       */
+      public int read(InputStream is) throws IOException {
+        growIfNeeded();
+        return is.read(buf, len, remaining);
+      }
+
+      @Override
+      public void write(byte[] b, int off, int len) {
+        growIfNeeded(len);
+        System.arraycopy(b, 0, buf, this.len, len);
+        this.len += len;
+        remaining = buf.length - this.len;
+      }
+
+      @Override
+      public void write(byte[] b) {
+        write(b, 0, b.length);
+      }
+
+      @Override
+      public void write(int b) {
+        int additionalLen = 1;
+        growIfNeeded(additionalLen);
+        buf[len] = (byte) b;
+        len += additionalLen;
+        remaining -= additionalLen;
+      }
+
+      @Override
+      public void flush() {
+        // nop
+      }
+
+      @Override
+      public void close() {
+        // nop
+      }
+    }
+
+    /**
+     * Reusable buffered {@link OutputStream}. This stream is a faster replacement for {@link
+     * java.io.BufferedOutputStream} because it can be reused without allocation and avoids using
+     * any synchronization.
+     */
+    public static final class BufOutputStream extends OutputStream {
+      private OutputStream wrapped;
+      private byte[] buf;
+      private int len;
+
+      public BufOutputStream(int reqLen) {
+        buf = new byte[initBufSize(reqLen)];
+      }
+
+      public BufOutputStream reset(OutputStream wrapped) {
+        this.wrapped = wrapped;
+        return this;
+      }
+
+      public BufOutputStream reset(OutputStream wrapped, int reqLen) {
+        buf = reqLen > buf.length ? new byte[initBufSize(reqLen)] : buf;
+        return reset(wrapped);
+      }
+
+      @Override
+      public void write(byte[] b, int off, int len) throws IOException {
+
+        if (len >= buf.length) {
+          flush();
+          wrapped.write(b);
+          return;
+        }
+
+        flushIfNecessary(len);
+        System.arraycopy(b, off, buf, this.len, len);
+      }
+
+      @Override
+      public void write(byte[] b) throws IOException {
+        write(b, 0, b.length);
+      }
+
+      @Override
+      public void write(int b) throws IOException {
+        int additionalLen = 1;
+        flushIfNecessary(additionalLen);
+        buf[len] = (byte) b;
+        len += additionalLen;
+      }
+
+      public void flushIfNecessary(int additionalLen) throws IOException {
+        if (buf.length - len > additionalLen) {
+          return;
+        }
+
+        flush();
+      }
+
+      @Override
+      public void flush() throws IOException {
+        wrapped.write(buf, 0, len);
+        len = 0;
+      }
+
+      @Override
+      public void close() throws IOException {
+
+        if (wrapped == null) {
+          return;
+        }
+
+        wrapped.close();
+        wrapped = null;
+      }
+    }
+
+    /**
+     * {@link java.io.FileOutputStream} that truncates <strong>after</strong> writing the file. It's
+     * significantly faster to truncate the file after writing than to use {@link
+     * StandardOpenOption#TRUNCATE_EXISTING} which truncates prior to writing.
+     */
+    public static final class TruncatingFileOutputStream extends java.io.FileOutputStream {
+
+      boolean closed;
+
+      public TruncatingFileOutputStream(File file) throws FileNotFoundException {
+        super(file, false);
+      }
+
+      @Override
+      public void close() throws IOException {
+
+        if (closed) {
+          return;
+        }
+
+        closed = true;
+        flush();
+        FileChannel channel = getChannel();
+        channel.truncate(channel.position());
+        super.close();
       }
     }
 
@@ -776,7 +1251,7 @@ public final class SJK {
         require.isTrue(op == CREATE_FILE || op == CREATE_DIR);
 
         return new AtomicFile(
-            createTempFile(file.getParentFile(), file.getName(), atomicAttempts).toFile(),
+            randomFile(op, file.getParentFile(), file.getName(), atomicAttempts).toFile(),
             require.nonNull(file));
       }
 
@@ -788,7 +1263,7 @@ public final class SJK {
       @Override
       public void close() throws IOException {
         if (finalFile != null) {
-          Files.move(file.toPath(), finalFile.toPath());
+          Files.move(file.toPath(), finalFile.toPath(), StandardCopyOption.ATOMIC_MOVE);
         }
       }
     }
@@ -823,17 +1298,17 @@ public final class SJK {
       }
     }
 
-    public static boolean deleteRecursively(Path dir, int atomicAttempts) {
-      try {
-        Path path =
-            atomicAttempts > 0
-                ? randomFile(RENAME_TO, dir, dir.toFile().getName(), atomicAttempts)
-                : dir;
-        Files.walkFileTree(path, DELETER);
-        return true;
-      } catch (IOException e) {
-        return false;
+    public static void deleteRecursively(Path dir, int atomicAttempts) throws IOException {
+
+      File dirFile = dir.toFile();
+
+      if (!dirFile.exists()) {
+        return;
       }
+
+      Path path =
+          atomicAttempts > 0 ? randomFile(RENAME_TO, dir, dirFile.getName(), atomicAttempts) : dir;
+      Files.walkFileTree(path, DELETER);
     }
 
     private static final class Copier extends SimpleFileVisitor<Path> {
@@ -860,13 +1335,9 @@ public final class SJK {
       }
     }
 
-    public static boolean copyRecursively(Path src, Path dst, int atomicAttempts) {
-      try (AtomicFile atomicDir =
-          AtomicFile.orStandardFile(CREATE_DIR, dst.toFile(), atomicAttempts)) {
-        Files.walkFileTree(src, new Copier(src, atomicDir.file.toPath()));
-        return true;
-      } catch (IOException e) {
-        return false;
+    public static void copyRecursively(Path src, Path dst, int atomicAttempts) throws IOException {
+      try (AtomicFile dir = AtomicFile.orStandardFile(CREATE_DIR, dst.toFile(), atomicAttempts)) {
+        Files.walkFileTree(src, new Copier(src, dir.file.toPath()));
       }
     }
 
@@ -919,37 +1390,49 @@ public final class SJK {
 
       Strings.Builder sb = new Strings.Builder();
 
+      String fileName = null;
       for (int i = 0; i < attempts; i++) {
-        try {
-          String fileName =
-              sb.reset()
-                  .append(".")
-                  .append(prefix)
-                  .append("_")
-                  .append(UUID.randomUUID())
-                  .toString();
-          Path path;
-          switch (op) {
-            case RENAME_TO:
-              path = new File(sourceOrParent.getParent(), fileName).toPath();
-              Files.move(sourceOrParent.toPath(), path);
-              return path;
-            case CREATE_DIR:
-              path = new File(sourceOrParent, fileName).toPath();
-              Files.createDirectory(new File(sourceOrParent, fileName).toPath());
-              return path;
-            case CREATE_FILE:
-              path = new File(sourceOrParent, fileName).toPath();
-              Files.createFile(new File(sourceOrParent, fileName).toPath());
-              return path;
-            default:
-              throw unhandledCase(op);
-          }
-        } catch (FileAlreadyExistsException ignored) {
+        fileName =
+            sb.reset().append(".").append(prefix).append("_").append(UUID.randomUUID()).toString();
+        switch (op) {
+          case RENAME_TO:
+            Path path = new File(sourceOrParent.getParent(), fileName).toPath();
+
+            try {
+              Files.move(sourceOrParent.toPath(), path, StandardCopyOption.ATOMIC_MOVE);
+            } catch (FileAlreadyExistsException ignored) {
+              continue;
+            }
+
+            return path;
+          case CREATE_DIR:
+            File dir = new File(sourceOrParent, fileName);
+
+            if (!dir.mkdir()) {
+              continue;
+            }
+
+            return dir.toPath();
+          case CREATE_FILE:
+            File file = new File(sourceOrParent, fileName);
+
+            if (!file.createNewFile()) {
+              continue;
+            }
+
+            return file.toPath();
+          default:
+            throw unhandledCase(op);
         }
       }
 
-      return null;
+      throw new IO.SimpleError(
+          "Failed to execute atomic operation "
+              + op.name()
+              + " for file "
+              + fileName
+              + " with source or parent "
+              + sourceOrParent.getAbsolutePath());
     }
 
     public static File mkdirs(File parent, String children) {
@@ -969,49 +1452,69 @@ public final class SJK {
         file = Files.readSymbolicLink(file);
       }
 
-      if (i >= maxFollows) {
-        throw new IO.SimpleError(
-            "Failed to follow all symbolic links from "
-                + initialFile.toAbsolutePath()
-                + " path referenced more than "
-                + maxFollows
-                + " links.");
-      }
-
       return file;
     }
 
     static Path handleNonRegularFiles(
-        Path path,
-        BasicFileAttributes attrs,
-        Path requiredParent,
-        boolean ignoreNonRegularFiles,
-        boolean allowExternalSymlinks,
-        int maxFollowSymLinks)
+        Path path, BasicFileAttributes attrs, Path requiredParent, FileAttrConfig cfg)
         throws IOException {
 
-      if (attrs.isSymbolicLink()) {
-
-        if (ignoreNonRegularFiles) {
-          return null;
-        }
-
-        path = followSymbolicLinks(path, maxFollowSymLinks);
-
-        if (!allowExternalSymlinks && !path.startsWith(requiredParent)) {
-          throw new IO.SimpleError(
-              "Symlink "
-                  + path.toFile().getAbsolutePath()
-                  + " targets file outside of required parent dir "
-                  + requiredParent.toFile().getAbsolutePath());
-        }
+      if (attrs.isOther() && cfg.ignoreOther) {
+        return null;
       }
 
-      if (!attrs.isRegularFile() && ignoreNonRegularFiles) {
+      if (attrs.isSymbolicLink() && cfg.maxFollowSymLinks > 0) {
+        path = followSymbolicLinks(path, cfg.maxFollowSymLinks);
+      }
+
+      if (cfg.ignoreExternalSymlinks && !path.startsWith(requiredParent)) {
         return null;
       }
 
       return path;
+    }
+
+    public static final class FileAttrConfig {
+      public static final FileAttrConfig DEFAULT = new FileAttrConfig(true, true, 1);
+
+      /**
+       * Set to true to ignore any file that is not a regular file, directory, or symlink.
+       *
+       * @see BasicFileAttributes#isOther()
+       */
+      public final boolean ignoreOther;
+
+      /**
+       * WARNING: following external symlinks can lead to unexpected, dangerous, or exploitable
+       * behavior. For example, consider the following directory:
+       *
+       * <pre>{@code
+       * /root/
+       * - foo.txt
+       * - bar.txt
+       * - link.file -> ../baz/
+       * }</pre>
+       *
+       * <p>{@code /root/link.file} points to {@code /baz/}, a directory outside {@code /root/}. So
+       * if the code recursively deletes files using this configuration, the code will delete not
+       * only {@code /root/} but also {@code /baz/} and all of its contents.
+       *
+       * <p>Set to true to follow symlinks outside the root recursion directory.
+       */
+      public final boolean ignoreExternalSymlinks;
+
+      /**
+       * The maximum symlinks to follow for a single file. Set to 0 or less to avoid following
+       * symlinks.
+       */
+      public final int maxFollowSymLinks;
+
+      public FileAttrConfig(
+          boolean ignoreOther, boolean ignoreExternalSymlinks, int maxFollowSymLinks) {
+        this.ignoreOther = ignoreOther;
+        this.ignoreExternalSymlinks = ignoreExternalSymlinks;
+        this.maxFollowSymLinks = maxFollowSymLinks;
+      }
     }
 
     private IO() {}
@@ -1024,8 +1527,16 @@ public final class SJK {
             + "Example usage:\n\n"
             + "java SJK.java javac source/ output/\n"
             + "\nFlags:\n"
-            + "--classpath|-cp\n"
+            + "--classpath|-cp <classpath>\n"
             + "\tThe optional compile classpath to use when compiling the sources.\n\n"
+            + "--release|-r <version>\n"
+            + "\tThe Java version and JDK version to compile against.\n\n"
+            + "--jar|-j <outputJar>\n"
+            + "\tArchives the compiled classes and resources into a jar file.\n\n"
+            + "--manifest|-m <attr>\n"
+            + "\tA manifest attr of the form 'Foo: Bar'. This argument may be specified multiple times.\n\n"
+            + "--clean|-c\n"
+            + "\tSpecify this option to remove the output directory prior to compiling.\n\n"
             + "--help|-h\n"
             + "\tPrint this usage information.\n\n";
 
@@ -1033,12 +1544,21 @@ public final class SJK {
       System.exit(compile(args));
     }
 
+    public static final class Context {
+      File sourceDir;
+      File outputDir;
+      File outputJar;
+      String classpath;
+      String releaseVersion;
+      FileAttrConfig fileAttrCfg = FileAttrConfig.DEFAULT;
+      LinkedHashMap<String, String> manifest = null;
+      int atomicAttempts = -1;
+      PrintStream err = System.err;
+    }
+
     public static int compile(String[] args) {
       PrintStream out = System.out;
-      PrintStream err = System.err;
-      File sourceDir = null;
-      File outputDir = null;
-      String classpath = null;
+      Context ctx = new Context();
 
       for (int i = 0; i < args.length; i++) {
         switch (args[i]) {
@@ -1050,132 +1570,189 @@ public final class SJK {
           case "--classpath":
           // fallthrough;
           case "-cp":
-            if (flags.printIfMissingValue("Classpath", i, args, USAGE, err)) {
+            if (flags.printIfMissingValue("Classpath", i, args, USAGE, ctx.err)) {
               return 1;
             }
 
             i++;
 
-            classpath = args[i];
+            ctx.classpath = args[i];
 
             break;
+          case "--release":
+          // fallthrough;
+          case "-r":
+            if (flags.printIfMissingValue("Release", i, args, USAGE, ctx.err)) {
+              return 1;
+            }
+
+            i++;
+
+            ctx.releaseVersion = args[i];
+
+            break;
+          case "--jar":
+          // fallthrough;
+          case "-j":
+            if (flags.printIfMissingValue("Jar", i, args, USAGE, ctx.err)) {
+              return 1;
+            }
+
+            i++;
+
+            ctx.outputJar = new File(args[i]);
+
+            break;
+          case "--manifest":
+          // fallthrough;
+          case "-m":
+            if (flags.printIfMissingValue("Manifest", i, args, USAGE, ctx.err)) {
+              return 1;
+            }
+
+            i++;
+
+            String attr = args[i];
+
+            final String sep = ": ";
+            int idx = attr.indexOf(sep);
+
+            if (idx <= 0) {
+              ctx.err.println(
+                  "Expected manifest attr to be a key-value pair separated by \""
+                      + sep
+                      + "\" but was \""
+                      + attr
+                      + "\".");
+              return 1;
+            }
+
+            if (ctx.manifest == null) {
+              ctx.manifest = new LinkedHashMap<>();
+              ctx.manifest.put(Attributes.Name.MANIFEST_VERSION.toString(), "1.0");
+            }
+
+            ctx.manifest.put(attr.substring(0, idx), attr.substring(idx + sep.length()));
+
+            break;
+          case "--clean":
+          // fallthrough;
+          case "-c":
+            ctx.atomicAttempts = DEFAULT_ATOMIC_ATTEMPTS;
+            break;
           default:
-            if (sourceDir == null) {
-              sourceDir = new File(args[i]);
-            } else if (outputDir == null) {
-              outputDir = new File(args[i]);
+            if (ctx.sourceDir == null) {
+              ctx.sourceDir = new File(args[i]);
+            } else if (ctx.outputDir == null) {
+              ctx.outputDir = new File(args[i]);
             } else {
-              err.printf("ERROR: Unexpected argument: %s.\n%s", args[i], USAGE);
+              ctx.err.printf("ERROR: Unexpected argument: %s.\n%s", args[i], USAGE);
               return 1;
             }
         }
       }
 
-      if (sourceDir == null) {
-        err.printf("ERROR: source directory is required.\n%s", USAGE);
+      if (ctx.sourceDir == null) {
+        ctx.err.printf("ERROR: source directory is required.\n%s", USAGE);
         return 1;
       }
 
-      if (outputDir == null) {
-        err.printf("ERROR: output directory is required.\n%s", USAGE);
+      if (ctx.outputDir == null) {
+        ctx.err.printf("ERROR: output directory is required.\n%s", USAGE);
         return 1;
       }
 
       try {
-        compile(sourceDir, outputDir, classpath, false, false, 1, err);
+        compile(ctx);
       } catch (IOException e) {
-        e.printStackTrace(err);
+        e.printStackTrace(ctx.err);
         return 1;
       }
 
       return 0;
     }
 
-    public static void compile(
-        File dirToCompile,
-        File outputDir,
-        List<String> classpath,
-        boolean ignoreNonRegularFiles,
-        boolean allowExternalSymlinks,
-        int maxFollowSymLinks,
-        PrintStream err)
-        throws IOException {
-      compile(
-          dirToCompile,
-          outputDir,
-          String.join(File.pathSeparator, classpath),
-          ignoreNonRegularFiles,
-          allowExternalSymlinks,
-          maxFollowSymLinks,
-          err);
+    public static void compile(Context ctx) throws IOException {
+
+      Path sourceDir = require.dirExists(ctx.sourceDir).getAbsoluteFile().toPath();
+      ctx.outputDir = require.dir(ctx.outputDir).getAbsoluteFile();
+      Path outputDir = ctx.outputDir.toPath();
+
+      if (ctx.atomicAttempts > 0) {
+        deleteRecursively(outputDir, ctx.atomicAttempts);
+      }
+
+      try (AtomicFile output =
+          AtomicFile.orStandardFile(CREATE_DIR, ctx.outputDir, ctx.atomicAttempts)) {
+        compile(
+            sourceDir,
+            output.file.toPath(),
+            ctx.classpath,
+            ctx.releaseVersion,
+            ctx.fileAttrCfg,
+            ctx.manifest,
+            ctx.atomicAttempts,
+            ctx.err);
+      }
+
+      if (ctx.outputJar != null) {
+        zip(ctx.outputDir, ctx.outputJar);
+      }
     }
 
     private static void compile(
-        File dirToCompileFile,
-        File outputDirFile,
+        Path sourceDir,
+        Path outputDir,
         String classpath,
-        boolean ignoreNonRegularFiles,
-        boolean allowExternalSymlinks,
-        int maxFollowSymLinks,
+        String releaseVersion,
+        FileAttrConfig cfg,
+        LinkedHashMap<String, String> manifestAttrs,
+        int atomicAttempts,
         PrintStream err)
         throws IOException {
 
       List<File> javaFiles = new ArrayList<>();
-      Path sourceDir = require.dir(dirToCompileFile).getAbsoluteFile().toPath();
-      Path outputDir = require.dir(outputDirFile).getAbsoluteFile().toPath();
 
       SimpleFileVisitor<Path> visitor =
-          new SimpleFileVisitor<>() {
+          new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
                 throws IOException {
 
-              if ((dir =
-                      handleNonRegularFiles(
-                          dir,
-                          attrs,
-                          sourceDir,
-                          ignoreNonRegularFiles,
-                          allowExternalSymlinks,
-                          maxFollowSymLinks))
-                  == null) {
-                return FileVisitResult.CONTINUE;
+              if (Files.isSameFile(outputDir, dir)) {
+                return FileVisitResult.SKIP_SUBTREE;
               }
 
-              Path targetDir = outputDir.resolve(sourceDir.relativize(dir));
+              if ((dir = handleNonRegularFiles(dir, attrs, sourceDir, cfg)) == null) {
+                return FileVisitResult.SKIP_SUBTREE;
+              }
+
+              Path targetDir = require.dir(outputDir.resolve(sourceDir.relativize(dir)));
 
               if (!Files.exists(targetDir)) {
                 Files.createDirectories(targetDir);
-              }
-
-              if (!Files.isDirectory(targetDir)) {
-                throw new IO.SimpleError(targetDir + " should be a directory but is not.");
               }
 
               return FileVisitResult.CONTINUE;
             }
 
             @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+            public FileVisitResult visitFile(Path filePath, BasicFileAttributes attrs)
                 throws IOException {
 
-              if ((file =
-                      handleNonRegularFiles(
-                          file,
-                          attrs,
-                          sourceDir,
-                          ignoreNonRegularFiles,
-                          allowExternalSymlinks,
-                          maxFollowSymLinks))
-                  == null) {
+              if ((filePath = handleNonRegularFiles(filePath, attrs, sourceDir, cfg)) == null) {
                 return FileVisitResult.CONTINUE;
               }
 
-              if (file.toString().endsWith(".java")) {
-                javaFiles.add(file.toFile());
+              File file = filePath.toFile();
+
+              if (file.getName().endsWith(".java")
+                  || file.getName().endsWith(".java.sh")
+                  || file.getName().endsWith(".jsh")) {
+                javaFiles.add(file);
               } else {
-                Path targetFile = outputDir.resolve(sourceDir.relativize(file));
-                Files.copy(file, targetFile, StandardCopyOption.REPLACE_EXISTING);
+                Path targetFile = outputDir.resolve(sourceDir.relativize(filePath));
+                Files.copy(filePath, targetFile, StandardCopyOption.REPLACE_EXISTING);
               }
 
               return FileVisitResult.CONTINUE;
@@ -1186,7 +1763,7 @@ public final class SJK {
 
       if (javaFiles.isEmpty()) {
         err.printf(
-            "WARN: no .java source files found. Non .java files have been copied to" + " %s.\n",
+            "WARN: no .java source files found. Non .java files have been copied to %s.\n",
             outputDir);
         return;
       }
@@ -1210,6 +1787,11 @@ public final class SJK {
           args.add(classpath);
         }
 
+        if (releaseVersion != null) {
+          args.add("--release");
+          args.add(releaseVersion);
+        }
+
         if (compiler.getTask(null, fm, diagnostics, args, null, units).call()) {
           succeeded = true;
         }
@@ -1220,16 +1802,32 @@ public final class SJK {
             "[%s] Line %d in %s: %s\n",
             diag.getKind(),
             diag.getLineNumber(),
-            diag.getSource().getName(),
+            diag.getSource() != null ? diag.getSource().getName() : "global",
             diag.getMessage(null));
       }
 
-      if (succeeded) {
-        // TODO perform atomic copy to make full compilation appear atomic.
-        return;
+      if (!succeeded) {
+        throw new IO.SimpleError("Failed to compile files. See diagnostics.");
       }
 
-      throw new IO.SimpleError("Failed to compile files. See diagnostics.");
+      if (manifestAttrs != null) {
+        Manifest manifest = new Manifest();
+
+        for (Map.Entry<String, String> entry : manifestAttrs.entrySet()) {
+          manifest.getMainAttributes().put(new Attributes.Name(entry.getKey()), entry.getValue());
+        }
+
+        File metaInf = new File(outputDir.toFile(), "META-INF");
+        boolean ignored = metaInf.mkdirs();
+
+        try (AtomicFile manifestFile =
+                AtomicFile.orStandardFile(
+                    CREATE_FILE, new File(metaInf, "MANIFEST.MF"), atomicAttempts);
+            OutputStream os = new TruncatingFileOutputStream(manifestFile.file);
+            BufOutputStream bos = new BufOutputStream(DEFAULT_BUF_SIZE).reset(os)) {
+          manifest.write(bos);
+        }
+      }
     }
 
     private Javac() {}
@@ -1317,60 +1915,46 @@ public final class SJK {
       }
     }
 
-    public static Path zip(File dirToZip, File outputZipFile) throws IOException {
-      return zip(
-          dirToZip,
-          outputZipFile,
-          false,
-          false,
-          DEFAULT_MAX_FOLLOW_SYMLINKS,
-          DEFAULT_ATOMIC_ATTEMPTS);
+    public static File zip(File dirToZip, File outputZip) throws IOException {
+      return zip(dirToZip, outputZip, FileAttrConfig.DEFAULT, DEFAULT_ATOMIC_ATTEMPTS);
     }
 
-    public static Path zip(
-        File dirToZip,
-        File outputZipFile,
-        boolean ignoreNonRegularFiles,
-        boolean allowExternalSymlinks,
-        int maxFollowSymLinks,
-        int atomicAttempts)
+    public static File zip(File dirToZip, File outputZip, FileAttrConfig cfg, int atomicAttempts)
         throws IOException {
 
-      Path sourceDir = require.dir(require.nonNull(dirToZip).toPath()).toAbsolutePath();
-      Path zipFilePath = require.nonNull(outputZipFile).toPath().toAbsolutePath();
-      File zipFile = zipFilePath.toFile();
-      zipFilePath = zipFilePath.toFile().exists() ? require.file(zipFilePath) : zipFilePath;
+      Path sourceDir = require.dirExists(dirToZip).toPath().toAbsolutePath();
       byte[] buf = new byte[8 * 1024 * 1024];
       Strings.Builder sb = new Strings.Builder();
 
-      try (AtomicFile zip = AtomicFile.orStandardFile(CREATE_FILE, zipFile, atomicAttempts);
-          OutputStream fos = new FileOutputStream(zip.file, false);
-          ZipOutputStream zos = new ZipOutputStream(fos)) {
+      try (AtomicFile zip =
+              AtomicFile.orStandardFile(
+                  CREATE_FILE, require.file(outputZip).getAbsoluteFile(), atomicAttempts);
+          OutputStream fos = new TruncatingFileOutputStream(zip.file);
+          BufOutputStream bos = new BufOutputStream(DEFAULT_BUF_SIZE).reset(fos);
+          ZipOutputStream zos = new ZipOutputStream(bos)) {
 
         zos.setLevel(Deflater.BEST_SPEED);
 
+        Path zipPath = zip.file.toPath();
+
         SimpleFileVisitor<Path> zipper =
-            new SimpleFileVisitor<>() {
+            new SimpleFileVisitor<Path>() {
               @Override
               public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
                   throws IOException {
 
-                if ((file =
-                        handleNonRegularFiles(
-                            file,
-                            attrs,
-                            sourceDir,
-                            ignoreNonRegularFiles,
-                            allowExternalSymlinks,
-                            maxFollowSymLinks))
-                    == null) {
+                if (Files.isSameFile(zipPath, file)) {
+                  return FileVisitResult.CONTINUE;
+                }
+
+                if ((file = handleNonRegularFiles(file, attrs, sourceDir, cfg)) == null) {
                   return FileVisitResult.CONTINUE;
                 }
 
                 Path relativePath = sourceDir.relativize(file);
                 ZipEntry zipEntry = new ZipEntry(relativePath.toString());
                 zos.putNextEntry(zipEntry);
-                copy(file, zos, buf);
+                copyAll(file, zos, buf);
                 zos.closeEntry();
 
                 return FileVisitResult.CONTINUE;
@@ -1384,16 +1968,8 @@ public final class SJK {
                   return FileVisitResult.CONTINUE;
                 }
 
-                if ((dir =
-                        handleNonRegularFiles(
-                            dir,
-                            attrs,
-                            sourceDir,
-                            ignoreNonRegularFiles,
-                            allowExternalSymlinks,
-                            maxFollowSymLinks))
-                    == null) {
-                  return FileVisitResult.CONTINUE;
+                if ((dir = handleNonRegularFiles(dir, attrs, sourceDir, cfg)) == null) {
+                  return FileVisitResult.SKIP_SUBTREE;
                 }
 
                 Path relativePath = sourceDir.relativize(dir);
@@ -1408,7 +1984,7 @@ public final class SJK {
         Files.walkFileTree(sourceDir, zipper);
       }
 
-      return zipFilePath;
+      return outputZip;
     }
 
     private Packager() {}
@@ -1530,9 +2106,14 @@ public final class SJK {
       return 199 < responseCode && responseCode < 300;
     }
 
+    @SuppressWarnings("deprecation")
+    private static URL url(String url) throws MalformedURLException {
+      return new URL(url);
+    }
+
     public static int get(String urlStr) {
       try {
-        URL url = new URL(urlStr);
+        URL url = url(urlStr);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
         return conn.getResponseCode();
@@ -1544,7 +2125,7 @@ public final class SJK {
     public static int uploadFile(File toUpload, String urlStr, byte[] buf, PrintStream err) {
 
       try {
-        URL url = new URL(urlStr);
+        URL url = url(urlStr);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
         conn.setDoOutput(true);
@@ -1554,7 +2135,7 @@ public final class SJK {
 
         try (FileInputStream is = new FileInputStream(toUpload);
             OutputStream os = conn.getOutputStream()) {
-          copy(is, os, buf);
+          copyAll(is, os, buf);
         }
 
         return conn.getResponseCode();
@@ -1568,7 +2149,7 @@ public final class SJK {
         String urlStr, File downloadLocation, byte[] buf, PrintStream err) {
 
       try {
-        URL url = new URL(urlStr);
+        URL url = url(urlStr);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
         int responseCode = conn.getResponseCode();
@@ -1578,7 +2159,7 @@ public final class SJK {
         }
 
         try (InputStream is = conn.getInputStream()) {
-          write(is, downloadLocation, buf, DEFAULT_ATOMIC_ATTEMPTS);
+          writeAll(is, downloadLocation, buf, DEFAULT_ATOMIC_ATTEMPTS);
         }
 
         return responseCode;
@@ -1995,7 +2576,7 @@ public final class SJK {
 
         try (OutputStream os = exchange.getResponseBody();
             InputStream is = Files.newInputStream(toDownload)) {
-          copy(is, os, threadLocals.buf());
+          copyAll(is, os, threadLocals.buf());
         }
 
         out.printf(
@@ -2085,7 +2666,7 @@ public final class SJK {
 
         try (InputStream is = exchange.getRequestBody();
             OutputStream os = Files.newOutputStream(toUpload)) {
-          copy(is, os, threadLocals.buf());
+          copyAll(is, os, threadLocals.buf());
         }
 
         // TODO check optional sha512 after uploading file (and delete if it doesn't match).
@@ -2181,10 +2762,13 @@ public final class SJK {
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-      System.out.println(SJK_DEBUG_PORT_USAGE);
-      System.out.println(SJK_TEST_PORT_USAGE);
+      PrintStream out = System.out;
+      PrintStream err = System.err;
 
-      Testing test = new Testing();
+      out.println(SJK_CHILD_DEBUG_PORT_USAGE);
+      out.println(SJK_TEST_PORT_USAGE);
+
+      Testing test = new Testing(out);
 
       for (boolean useLocationArg : new boolean[] {true, false}) {
 
@@ -2210,7 +2794,15 @@ public final class SJK {
         Path parentTempDir =
             Files.createTempDirectory(FileServerTest.class.getTypeName()).toAbsolutePath();
         Runtime.getRuntime()
-            .addShutdownHook(new Thread(() -> deleteRecursively(parentTempDir, -1)));
+            .addShutdownHook(
+                new Thread(
+                    () -> {
+                      try {
+                        deleteRecursively(parentTempDir, -1);
+                      } catch (IOException e) {
+                        e.printStackTrace(err);
+                      }
+                    }));
 
         Path tempDir = mkdirs(parentTempDir.toFile(), "work").toPath();
         Path javaDir = mkdirs(parentTempDir.toFile(), "java").toPath();
@@ -2221,7 +2813,7 @@ public final class SJK {
 
         List<String> childArgs = new ArrayList<>();
         childArgs.add(JAVA_EXE);
-        addJavaDebugArgIfSpecified(childArgs, true);
+        addJavaDebugArgIfSpecified(SJK_CHILD_DEBUG_PORT, true, childArgs);
         childArgs.add(sjkSource.toFile().getAbsolutePath());
         childArgs.add("fileServer");
         childArgs.add("--port");
@@ -2248,62 +2840,64 @@ public final class SJK {
                 () -> net.isOk(net.get("http://localhost:" + TEST_PORT + "/ping")), timeoutMs),
             "Failed to ping within " + timeoutMs + "ms timeout.");
 
-        byte[] buf = new byte[DEFAULT_BUF_SIZE];
+        DynBuf buf = new DynBuf(DEFAULT_BUF_SIZE);
+        ByteBuffer nativeBuf = ByteBuffer.allocateDirect(64 * 1024);
+        CharsetEncoder utf8Encoder = UTF_8.newEncoder();
 
         // Test upload.
-        Path fooTxt = Files.writeString(new File(tempDir.toFile(), "foo.txt").toPath(), "foo\nbar");
+        File fooTxt = new File(tempDir.toFile(), "foo.txt");
+        writeAll("foo\nbar", utf8Encoder.reset(), fooTxt, nativeBuf, 1);
 
         if (!isOk(
             uploadFile(
-                fooTxt.toFile(),
-                "http://localhost:" + TEST_PORT + "/upload/foo.txt",
-                buf,
-                System.err))) {
+                fooTxt, "http://localhost:" + TEST_PORT + "/upload/foo.txt", buf.buf, err))) {
           test.fail("Failed to upload " + fooTxt);
         }
 
         test.assertEquals(
-            "foo\nbar", Files.readString(new File(serverDir.toFile(), "foo.txt").toPath()));
+            "foo\nbar",
+            readAllAsString(new File(serverDir.toFile(), "foo.txt"), buf.reset(), UTF_8));
 
         // Test download of uploaded file.
-        Path downloadedFooTxt = new File(tempDir.toFile(), "downloadedFoo.txt").toPath();
+        File downloadedFooTxt = new File(tempDir.toFile(), "downloadedFoo.txt");
 
         if (!isOk(
             downloadFile(
                 "http://localhost:" + TEST_PORT + "/download/foo.txt",
-                downloadedFooTxt.toFile(),
-                buf,
-                System.err))) {
+                downloadedFooTxt,
+                buf.buf,
+                err))) {
           test.fail("Failed to download " + fooTxt);
         }
 
-        test.assertEquals("foo\nbar", Files.readString(downloadedFooTxt));
+        test.assertEquals("foo\nbar", readAllAsString(downloadedFooTxt, buf.reset(), UTF_8));
 
         // Test upload.
-        Path barTxt = Files.writeString(new File(serverDir.toFile(), "bar.txt").toPath(), "baz");
-        Path downloadedBarTxt = new File(tempDir.toFile(), "downloadedBar.txt").toPath();
+        File barTxt = new File(serverDir.toFile(), "bar.txt");
+        writeAll("baz", utf8Encoder.reset(), barTxt, nativeBuf, 1);
+        File downloadedBarTxt = new File(tempDir.toFile(), "downloadedBar.txt");
 
         if (!isOk(
             downloadFile(
                 "http://localhost:" + TEST_PORT + "/download/bar.txt",
-                downloadedBarTxt.toFile(),
-                buf,
-                System.err))) {
+                downloadedBarTxt,
+                buf.buf,
+                err))) {
           test.fail("Failed to download " + barTxt);
         }
 
-        test.assertEquals("baz", Files.readString(downloadedBarTxt));
+        test.assertEquals("baz", readAllAsString(downloadedBarTxt, buf.reset(), UTF_8));
 
         // Test malicious download path traversal.
         File barTxtOutsideServerDir = new File(parentTempDir.toFile(), "bar.txt");
-        Files.copy(barTxt, barTxtOutsideServerDir.toPath());
+        Files.copy(barTxt.toPath(), barTxtOutsideServerDir.toPath());
 
         if (HTTP_BAD_REQUEST
             != downloadFile(
                 "http://localhost:" + TEST_PORT + "/download/../bar.txt",
-                downloadedBarTxt.toFile(),
-                buf,
-                System.err)) {
+                downloadedBarTxt,
+                buf.buf,
+                err)) {
           test.fail(
               "Malicious request escaped server context dir of "
                   + serverDir
@@ -2316,10 +2910,7 @@ public final class SJK {
 
         if (HTTP_BAD_REQUEST
             != uploadFile(
-                fooTxt.toFile(),
-                "http://localhost:" + TEST_PORT + "/upload/../foo.txt",
-                buf,
-                System.err)) {
+                fooTxt, "http://localhost:" + TEST_PORT + "/upload/../foo.txt", buf.buf, err)) {
           test.fail(
               "Malicious request escaped server context dir of "
                   + serverDir
