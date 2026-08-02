@@ -49,7 +49,6 @@ import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
-
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
@@ -118,7 +117,6 @@ import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
-
 import stiemannkj1.SJK.IO.AtomicFile;
 import stiemannkj1.SJK.IO.BufOutputStream;
 import stiemannkj1.SJK.IO.DynBuf;
@@ -232,6 +230,27 @@ public final class SJK {
     args.add(debugArg);
 
     return args;
+  }
+
+  /**
+   * Complimentary interface to {@link AutoCloseable} that runs code only if no exceptions were
+   * thrown. Ex:
+   *
+   * <pre>{@code
+   * Foo foo = new Foo();
+   *
+   * // Defer loop style:
+   * for (int ok = 0; i < 1; i++, foo.onSuccess()) {
+   *     foo.mayThrow();
+   * }
+   *
+   * // Standard style:
+   * foo.mayThrow();
+   * foo.onSuccess();
+   * }</pre>
+   */
+  public interface OnSuccess {
+    void onSuccess() throws Exception;
   }
 
   public static void main(String[] args) {
@@ -944,7 +963,11 @@ public final class SJK {
       try (AtomicFile atomicFile = AtomicFile.orStandardFile(CREATE_FILE, file, atomicAttempts);
           FileChannel channel =
               FileChannel.open(atomicFile.file.toPath(), StandardOpenOption.WRITE)) {
-        return copyAll(str, encoder, off, len, channel, buf);
+        long written = 0;
+        for (int ok = 0; ok < 1; ok++, atomicFile.onSuccess()) {
+          written = copyAll(str, encoder, off, len, channel, buf);
+        }
+        return written;
       }
     }
 
@@ -961,7 +984,9 @@ public final class SJK {
         throws IOException {
       try (AtomicFile atomicFile = AtomicFile.orStandardFile(CREATE_FILE, file, atomicAttempts);
           OutputStream os = new TruncatingFileOutputStream(atomicFile.file)) {
-        os.write(buf, off, len);
+        for (int ok = 0; ok < 1; ok++, atomicFile.onSuccess()) {
+          os.write(buf, off, len);
+        }
       }
 
       return len;
@@ -975,7 +1000,11 @@ public final class SJK {
         throws IOException {
       try (AtomicFile atomicFile = AtomicFile.orStandardFile(CREATE_FILE, file, atomicAttempts);
           OutputStream os = new TruncatingFileOutputStream(atomicFile.file)) {
-        return copyAll(is, os, buf);
+        long written = 0;
+        for (int ok = 0; ok < 1; ok++, atomicFile.onSuccess()) {
+          written = copyAll(is, os, buf);
+        }
+        return written;
       }
     }
 
@@ -1154,6 +1183,7 @@ public final class SJK {
 
         flushIfNecessary(len);
         System.arraycopy(b, off, buf, this.len, len);
+        this.len += len;
       }
 
       @Override
@@ -1190,6 +1220,7 @@ public final class SJK {
           return;
         }
 
+        flush();
         wrapped.close();
         wrapped = null;
       }
@@ -1216,17 +1247,17 @@ public final class SJK {
         }
 
         closed = true;
-        flush();
         FileChannel channel = getChannel();
         channel.truncate(channel.position());
         super.close();
       }
     }
 
-    public static final class AtomicFile implements Closeable {
+    public static final class AtomicFile implements Closeable, OnSuccess {
 
       public final File file;
       private final File finalFile;
+      private boolean succeeded;
 
       private static AtomicFile orStandardFile(Operation op, File file, int atomicAttempts)
           throws IOException {
@@ -1261,8 +1292,21 @@ public final class SJK {
       }
 
       @Override
+      public void onSuccess() {
+        succeeded = true;
+      }
+
+      @Override
       public void close() throws IOException {
-        if (finalFile != null) {
+        if (!succeeded) {
+          file.delete();
+
+          if (finalFile != null) {
+            throw new IO.SimpleError("Atomic action failed for " + finalFile.getAbsolutePath());
+          } else {
+            throw new IO.SimpleError("File action failed for " + file.getAbsolutePath());
+          }
+        } else if (finalFile != null) {
           Files.move(file.toPath(), finalFile.toPath(), StandardCopyOption.ATOMIC_MOVE);
         }
       }
@@ -1337,7 +1381,9 @@ public final class SJK {
 
     public static void copyRecursively(Path src, Path dst, int atomicAttempts) throws IOException {
       try (AtomicFile dir = AtomicFile.orStandardFile(CREATE_DIR, dst.toFile(), atomicAttempts)) {
-        Files.walkFileTree(src, new Copier(src, dir.file.toPath()));
+        for (int ok = 0; ok < 1; ok++, dir.onSuccess()) {
+          Files.walkFileTree(src, new Copier(src, dir.file.toPath()));
+        }
       }
     }
 
@@ -1523,10 +1569,12 @@ public final class SJK {
   public static final class Javac {
 
     private static final String USAGE =
-        "\nTool for compiling .java files using javac.\n\n"
+        "\n"
+            + "Tool for compiling .java files using javac.\n\n"
             + "Example usage:\n\n"
             + "java SJK.java javac source/ output/\n"
-            + "\nFlags:\n"
+            + "\n"
+            + "Flags:\n"
             + "--classpath|-cp <classpath>\n"
             + "\tThe optional compile classpath to use when compiling the sources.\n\n"
             + "--release|-r <version>\n"
@@ -1534,7 +1582,8 @@ public final class SJK {
             + "--jar|-j <outputJar>\n"
             + "\tArchives the compiled classes and resources into a jar file.\n\n"
             + "--manifest|-m <attr>\n"
-            + "\tA manifest attr of the form 'Foo: Bar'. This argument may be specified multiple times.\n\n"
+            + "\tA manifest attr of the form 'Foo: Bar'. This argument may be specified multiple"
+            + " times.\n\n"
             + "--clean|-c\n"
             + "\tSpecify this option to remove the output directory prior to compiling.\n\n"
             + "--help|-h\n"
@@ -1684,15 +1733,17 @@ public final class SJK {
 
       try (AtomicFile output =
           AtomicFile.orStandardFile(CREATE_DIR, ctx.outputDir, ctx.atomicAttempts)) {
-        compile(
-            sourceDir,
-            output.file.toPath(),
-            ctx.classpath,
-            ctx.releaseVersion,
-            ctx.fileAttrCfg,
-            ctx.manifest,
-            ctx.atomicAttempts,
-            ctx.err);
+        for (int ok = 0; ok < 1; ok++, output.onSuccess()) {
+          compile(
+              sourceDir,
+              output.file.toPath(),
+              ctx.classpath,
+              ctx.releaseVersion,
+              ctx.fileAttrCfg,
+              ctx.manifest,
+              ctx.atomicAttempts,
+              ctx.err);
+        }
       }
 
       if (ctx.outputJar != null) {
@@ -1825,7 +1876,9 @@ public final class SJK {
                     CREATE_FILE, new File(metaInf, "MANIFEST.MF"), atomicAttempts);
             OutputStream os = new TruncatingFileOutputStream(manifestFile.file);
             BufOutputStream bos = new BufOutputStream(DEFAULT_BUF_SIZE).reset(os)) {
-          manifest.write(bos);
+          for (int ok = 0; ok < 1; ok++, manifestFile.onSuccess()) {
+            manifest.write(bos);
+          }
         }
       }
     }
@@ -1932,56 +1985,58 @@ public final class SJK {
           OutputStream fos = new TruncatingFileOutputStream(zip.file);
           BufOutputStream bos = new BufOutputStream(DEFAULT_BUF_SIZE).reset(fos);
           ZipOutputStream zos = new ZipOutputStream(bos)) {
+        for (int ok = 0; ok < 1; ok++, zip.onSuccess()) {
 
-        zos.setLevel(Deflater.BEST_SPEED);
+          zos.setLevel(Deflater.BEST_SPEED);
 
-        Path zipPath = zip.file.toPath();
+          Path zipPath = zip.file.toPath();
 
-        SimpleFileVisitor<Path> zipper =
-            new SimpleFileVisitor<Path>() {
-              @Override
-              public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-                  throws IOException {
+          SimpleFileVisitor<Path> zipper =
+              new SimpleFileVisitor<Path>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+                    throws IOException {
 
-                if (Files.isSameFile(zipPath, file)) {
+                  if (Files.isSameFile(zipPath, file)) {
+                    return FileVisitResult.CONTINUE;
+                  }
+
+                  if ((file = handleNonRegularFiles(file, attrs, sourceDir, cfg)) == null) {
+                    return FileVisitResult.CONTINUE;
+                  }
+
+                  Path relativePath = sourceDir.relativize(file);
+                  ZipEntry zipEntry = new ZipEntry(relativePath.toString());
+                  zos.putNextEntry(zipEntry);
+                  copyAll(file, zos, buf);
+                  zos.closeEntry();
+
                   return FileVisitResult.CONTINUE;
                 }
 
-                if ((file = handleNonRegularFiles(file, attrs, sourceDir, cfg)) == null) {
+                @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+                    throws IOException {
+
+                  if (sourceDir.equals(dir)) {
+                    return FileVisitResult.CONTINUE;
+                  }
+
+                  if ((dir = handleNonRegularFiles(dir, attrs, sourceDir, cfg)) == null) {
+                    return FileVisitResult.SKIP_SUBTREE;
+                  }
+
+                  Path relativePath = sourceDir.relativize(dir);
+                  ZipEntry zipEntry =
+                      new ZipEntry(sb.reset().append(relativePath).append("/").toString());
+                  zos.putNextEntry(zipEntry);
+                  zos.closeEntry();
+
                   return FileVisitResult.CONTINUE;
                 }
-
-                Path relativePath = sourceDir.relativize(file);
-                ZipEntry zipEntry = new ZipEntry(relativePath.toString());
-                zos.putNextEntry(zipEntry);
-                copyAll(file, zos, buf);
-                zos.closeEntry();
-
-                return FileVisitResult.CONTINUE;
-              }
-
-              @Override
-              public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-                  throws IOException {
-
-                if (sourceDir.equals(dir)) {
-                  return FileVisitResult.CONTINUE;
-                }
-
-                if ((dir = handleNonRegularFiles(dir, attrs, sourceDir, cfg)) == null) {
-                  return FileVisitResult.SKIP_SUBTREE;
-                }
-
-                Path relativePath = sourceDir.relativize(dir);
-                ZipEntry zipEntry =
-                    new ZipEntry(sb.reset().append(relativePath).append("/").toString());
-                zos.putNextEntry(zipEntry);
-                zos.closeEntry();
-
-                return FileVisitResult.CONTINUE;
-              }
-            };
-        Files.walkFileTree(sourceDir, zipper);
+              };
+          Files.walkFileTree(sourceDir, zipper);
+        }
       }
 
       return outputZip;
