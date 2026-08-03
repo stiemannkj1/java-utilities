@@ -19,6 +19,7 @@ import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_CREATED;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.jar.Attributes.Name.MAIN_CLASS;
 import static stiemannkj1.SJK.Check.isBlank;
 import static stiemannkj1.SJK.Check.isEmpty;
 import static stiemannkj1.SJK.Check.isNotNull;
@@ -1747,7 +1748,12 @@ public final class SJK {
       }
 
       if (ctx.outputJar != null) {
-        zip(ctx.outputDir, ctx.outputJar);
+        zip(
+            ctx.outputDir,
+            ctx.outputJar,
+            FileAttrConfig.DEFAULT,
+            ctx.manifest.containsKey(MAIN_CLASS.toString()),
+            ctx.atomicAttempts);
       }
     }
 
@@ -1969,10 +1975,31 @@ public final class SJK {
     }
 
     public static File zip(File dirToZip, File outputZip) throws IOException {
-      return zip(dirToZip, outputZip, FileAttrConfig.DEFAULT, DEFAULT_ATOMIC_ATTEMPTS);
+      return zip(dirToZip, outputZip, FileAttrConfig.DEFAULT, false, DEFAULT_ATOMIC_ATTEMPTS);
     }
 
-    public static File zip(File dirToZip, File outputZip, FileAttrConfig cfg, int atomicAttempts)
+    @SuppressWarnings("ConcatenationWithEmptyString")
+    private static final byte[] EXECUTABLE_JAR_SCRIPT =
+        (""
+                // TODO test batch file with docker+wine
+                + "@ 2>/dev/null # 2>nul & echo off & goto BOF\n"
+                + ":\n"
+                + "exec java $JAVA_OPTS -jar \"$0\" \"$@\"\n"
+                + "\n"
+                + ":BOF\n"
+                + "setlocal\n"
+                + "@echo off\n"
+                + "java %JAVA_OPTS% -jar \"%~dpnx0\" %*\n"
+                + "endlocal\n"
+                + "exit /B %errorlevel%\n")
+            .getBytes(UTF_8);
+
+    public static File zip(
+        File dirToZip,
+        File outputZip,
+        FileAttrConfig cfg,
+        boolean executableJar,
+        int atomicAttempts)
         throws IOException {
 
       Path sourceDir = require.dirExists(dirToZip).toPath().toAbsolutePath();
@@ -1986,6 +2013,8 @@ public final class SJK {
           BufOutputStream bos = new BufOutputStream(DEFAULT_BUF_SIZE).reset(fos);
           ZipOutputStream zos = new ZipOutputStream(bos)) {
         for (int ok = 0; ok < 1; ok++, zip.onSuccess()) {
+
+          bos.write(EXECUTABLE_JAR_SCRIPT);
 
           zos.setLevel(Deflater.BEST_SPEED);
 
@@ -2036,6 +2065,11 @@ public final class SJK {
                 }
               };
           Files.walkFileTree(sourceDir, zipper);
+
+          if (executableJar && !zip.file.setExecutable(true, true)) {
+            throw new IO.SimpleError(
+                "Failed to make " + outputZip.getAbsolutePath() + " executable.");
+          }
         }
       }
 

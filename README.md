@@ -45,7 +45,7 @@ Upload a file:
 java ~/Downloads/SJK.java --upload source.txt https://stiemannkj1.gitlab.com/source.txt
 ```
 
-Build a `.jar`:
+Build an executable `.jar`:
 
 ```sh
 java ~/Downloads/SJK.java javac --clean --release 8 --manifest 'Main-Class: stiemannkj1.SJK' ./stiemannkj1 build/ --jar build/sjk.jar
@@ -62,8 +62,6 @@ Format source:
 ```
 java -jar vendor/gfmt.jar --replace stiemannkj1/**.java
 ```
-
-* TODO add code to generate `sjk` and `sjk.bat` and add them to `.gitignore`.
 
 ## License
 

@@ -1,3 +1,0 @@
-#!/usr/bin/env -S sh
-SCRIPT_DIR="$(cd "${0%/*}" && printf "$PWD")"
-/usr/bin/env -S java -XX:TieredStopAtLevel=2 --source 8 "$SCRIPT_DIR/stiemannkj1/SJK.java" "$@"
