@@ -60,11 +60,10 @@ java ~/Downloads/SJK.java fileServerTest
 Format source:
 
 ```
-java -jar vendor/google-java-format-*.jar --replace stiemannkj1/**.java
+java -jar vendor/gfmt.jar --replace stiemannkj1/**.java
 ```
 
 * TODO add code to generate `sjk` and `sjk.bat` and add them to `.gitignore`.
-* TODO Add symlink for formatter jar to avoid relying on wildcards.
 
 ## License
 
