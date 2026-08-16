@@ -40,6 +40,7 @@ import static stiemannkj1.SJK.IO.writeAll;
 import static stiemannkj1.SJK.Numbers.nextMultOf2;
 import static stiemannkj1.SJK.Packager.zip;
 import static stiemannkj1.SJK.Strings.appendDecapitalized;
+import static stiemannkj1.SJK.Strings.reset;
 import static stiemannkj1.SJK.Strings.stripPrefix;
 import static stiemannkj1.SJK.ThreadUnsafeStorage.THREAD_LOCALS;
 import static stiemannkj1.SJK.net.downloadFile;
@@ -59,6 +60,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -94,6 +96,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.Formatter;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -123,6 +126,7 @@ import stiemannkj1.SJK.IO.BufOutputStream;
 import stiemannkj1.SJK.IO.DynBuf;
 import stiemannkj1.SJK.IO.FileAttrConfig;
 import stiemannkj1.SJK.IO.TruncatingFileOutputStream;
+import stiemannkj1.SJK.Testing.SimpleFailure;
 
 /**
  * SJK is a "Software Joy Kit" for Java. It is a single Java file which depends solely on JDK 8 to
@@ -139,6 +143,8 @@ import stiemannkj1.SJK.IO.TruncatingFileOutputStream;
  */
 public final class SJK {
 
+  public static final UnsupportedOperationException UNSUPPORTED =
+      new UnsupportedOperationException();
   public static final String JAVA_HOME;
   public static final String JAVA_EXE;
   public static final int JAVA_MAJOR_VERSION;
@@ -179,6 +185,14 @@ public final class SJK {
 
     JAVA_MAJOR_VERSION = javaMajorVersion;
     JAVA_9_AND_UP = JAVA_MAJOR_VERSION > 8;
+  }
+
+  public static String fullyQualifiedMethodName(StringBuilder sb, Method method) {
+    return reset(sb)
+        .append(method.getDeclaringClass().getTypeName())
+        .append('.')
+        .append(method.getName())
+        .toString();
   }
 
   /** Throws a checked {@link Exception} as if it were a {@link RuntimeException}. */
@@ -326,23 +340,31 @@ public final class SJK {
       }
     }
 
+    Class<?>[] stringArrayArgs = new Class<?>[] {String[].class};
+
     StringBuilder sb = new StringBuilder();
     Map<String, Method> tools = new TreeMap<>();
 
     for (Class<?> nested : SJK.class.getDeclaredClasses()) {
-      try {
-        Method method = nested.getDeclaredMethod("main", String[].class);
+      Method[] methods = nested.getDeclaredMethods();
+      Method mainMethod = null;
 
-        if ((method.getModifiers() & Modifier.STATIC) == 0
-            || !void.class.equals(method.getReturnType())) {
-          continue;
+      for (Method method : methods) {
+        if ((method.getModifiers() & Modifier.STATIC) != 0
+            && void.class.equals(method.getReturnType())
+            && Arrays.equals(stringArrayArgs, method.getParameterTypes())
+            && "main".equals(method.getName())) {
+          mainMethod = method;
+          break;
         }
-
-        sb.setLength(0);
-        tools.put(appendDecapitalized(sb, nested.getSimpleName()).toString(), method);
-      } catch (ReflectiveOperationException e) {
-        // no_op;
       }
+
+      if (mainMethod == null) {
+        continue;
+      }
+
+      sb.setLength(0);
+      tools.put(appendDecapitalized(sb, nested.getSimpleName()).toString(), mainMethod);
     }
 
     String requestedTool = null;
@@ -426,6 +448,232 @@ public final class SJK {
       } catch (NumberFormatException e) {
         // TODO avoid exceptions
         return defaultValue;
+      }
+    }
+
+    public static StringBuffer reset(StringBuffer sb) {
+      sb.setLength(0);
+      return sb;
+    }
+
+    public static StringBuilder reset(StringBuilder sb) {
+      sb.setLength(0);
+      return sb;
+    }
+
+    public static final class Writer extends PrintWriter {
+      private final StringBuilder sb;
+      private final Formatter formatter;
+
+      public Writer(Locale locale, StringBuilder sb) {
+        super(OutputStream.nullOutputStream());
+        this.sb = sb;
+        this.formatter = new Formatter(sb, locale);
+      }
+
+      public Writer reset() {
+        Strings.reset(sb);
+        return this;
+      }
+
+      @Override
+      public void close() {
+        @SuppressWarnings({"resource", "unused"})
+        Writer writer = reset();
+      }
+
+      @Override
+      public String toString() {
+        return sb.toString();
+      }
+
+      @Override
+      public void write(int c) {
+        sb.append(c);
+      }
+
+      @Override
+      public void write(char[] cbuf) {
+        sb.append(cbuf);
+      }
+
+      @Override
+      public void write(String str) {
+        sb.append(str);
+      }
+
+      @Override
+      public void write(String str, int off, int len) {
+        sb.append(str, off, len);
+      }
+
+      @Override
+      public Writer append(CharSequence csq) {
+        sb.append(csq);
+        return this;
+      }
+
+      @Override
+      public Writer append(CharSequence csq, int start, int end) {
+        sb.append(csq, start, end);
+        return this;
+      }
+
+      @Override
+      public Writer append(char c) {
+        sb.append(c);
+        return this;
+      }
+
+      @Override
+      public void write(char[] cbuf, int off, int len) {
+        sb.append(cbuf, off, len);
+      }
+
+      @Override
+      public void print(boolean b) {
+        sb.append(b);
+      }
+
+      @Override
+      public void print(char c) {
+        sb.append(c);
+      }
+
+      @Override
+      public void print(int i) {
+        sb.append(i);
+      }
+
+      @Override
+      public void print(long l) {
+        sb.append(l);
+      }
+
+      @Override
+      public void print(float f) {
+        sb.append(f);
+      }
+
+      @Override
+      public void print(double d) {
+        sb.append(d);
+      }
+
+      @Override
+      public void print(char[] s) {
+        sb.append(s);
+      }
+
+      @Override
+      public void print(String s) {
+        sb.append(s);
+      }
+
+      @Override
+      public void print(Object obj) {
+        sb.append(obj);
+      }
+
+      @Override
+      public void println() {
+        sb.append('\n');
+      }
+
+      @Override
+      public void println(boolean x) {
+        print(x);
+        println();
+      }
+
+      @Override
+      public void println(char x) {
+        print(x);
+        println();
+      }
+
+      @Override
+      public void println(int x) {
+        print(x);
+        println();
+      }
+
+      @Override
+      public void println(long x) {
+        print(x);
+        println();
+      }
+
+      @Override
+      public void println(float x) {
+        print(x);
+        println();
+      }
+
+      @Override
+      public void println(double x) {
+        print(x);
+        println();
+      }
+
+      @Override
+      public void println(char[] x) {
+        print(x);
+        println();
+      }
+
+      @Override
+      public void println(String x) {
+        print(x);
+        println();
+      }
+
+      @Override
+      public void println(Object x) {
+        print(x);
+        println();
+      }
+
+      @Override
+      public PrintWriter printf(String format, Object... args) {
+        formatter.format(format, args);
+        return this;
+      }
+
+      @Override
+      public PrintWriter printf(Locale l, String format, Object... args) {
+        formatter.format(l, format, args);
+        return this;
+      }
+
+      @Override
+      public PrintWriter format(String format, Object... args) {
+        formatter.format(format, args);
+        return this;
+      }
+
+      @Override
+      public PrintWriter format(Locale l, String format, Object... args) {
+        formatter.format(l, format, args);
+        return this;
+      }
+
+      @Override
+      public void flush() {}
+
+      @Override
+      public boolean checkError() {
+        throw UNSUPPORTED;
+      }
+
+      @Override
+      protected void setError() {
+        throw UNSUPPORTED;
+      }
+
+      @Override
+      protected void clearError() {
+        throw UNSUPPORTED;
       }
     }
 
@@ -691,7 +939,22 @@ public final class SJK {
     private BusyWait() {}
   }
 
+  // TODO isolate envs thread local
+  // TODO isolated properties thread local
+  // TODO isolate stdout/stderr thread local
+  // TODO temp dir
   public static final class Testing {
+
+    public static final class SimpleFailure extends AssertionError {
+      @Override
+      public synchronized Throwable fillInStackTrace() {
+        return this;
+      }
+
+      public SimpleFailure(String message) {
+        super(message, null);
+      }
+    }
 
     private static final AtomicBoolean isTesting = new AtomicBoolean(false);
 
@@ -699,22 +962,24 @@ public final class SJK {
       return isTesting.get();
     }
 
-    private final PrintStream out;
-    private final AssertionError failures;
+    private static final ThreadLocal<Testing> TESTING = ThreadLocal.withInitial(Testing::new);
+
+    public static Testing setUpTest(String testName, Method test) {
+      isTesting.set(true);
+      Testing testing = TESTING.get();
+      testing.failures =
+          new SimpleFailure(testing.sb().append(testName).append(" failed.").toString());
+      testing.sb();
+      return testing;
+    }
+
     private final StringBuilder sb;
 
-    public Testing(PrintStream out) {
-      this.out = out;
-      this.failures =
-          new AssertionError() {
-            @Override
-            public synchronized Throwable fillInStackTrace() {
-              // Skip stacktrace generation.
-              return this;
-            }
-          };
+    private SimpleFailure failures;
+    private Method method;
+
+    private Testing() {
       this.sb = new StringBuilder();
-      isTesting.set(true);
     }
 
     public StringBuilder sb() {
@@ -731,7 +996,7 @@ public final class SJK {
         return;
       }
 
-      failures.addSuppressed(new AssertionError(message));
+      fail(message);
     }
 
     public void assertTrue(boolean bool) {
@@ -744,13 +1009,13 @@ public final class SJK {
         return;
       }
 
-      failures.addSuppressed(
-          new AssertionError(
-              sb().append("Expected: <[\n")
-                  .append(o1)
-                  .append("\n]> but was <[\n")
-                  .append(o2)
-                  .append("\n]>")));
+      fail(
+          sb().append("Expected: <[\n")
+              .append(o1)
+              .append("\n]> but was <[\n")
+              .append(o2)
+              .append("\n]>")
+              .toString());
     }
 
     public void assertNotEquals(Object o1, Object o2) {
@@ -759,21 +1024,98 @@ public final class SJK {
         return;
       }
 
-      failures.addSuppressed(
-          new AssertionError(
-              sb().append("Expected not equals: <[\n")
-                  .append(o1)
-                  .append("\n]> but was <[\n")
-                  .append(o2)
-                  .append("\n]>")));
+      fail(
+          sb().append("Expected not equals: <[\n")
+              .append(o1)
+              .append("\n]> but was <[\n")
+              .append(o2)
+              .append("\n]>")
+              .toString());
+    }
+  }
+
+  public static class Test {
+    public static void main(String[] args) {
+      System.exit(runTests(args));
     }
 
-    public void throwIfFailed() {
-      if (failures.getSuppressed().length > 0) {
-        throw failures;
+    public static int runTests(String[] args) {
+
+      Class<?>[] testArgs = new Class<?>[] {Testing.class};
+
+      class TestMethod {
+        final Method method;
+        final String testName;
+
+        TestMethod(StringBuilder sb, Method method) {
+          this.method = method;
+          this.testName = fullyQualifiedMethodName(sb, method);
+        }
       }
 
-      out.println("Tests passed.");
+      List<TestMethod> testMethods = new ArrayList<>(1024);
+      StringBuilder sb = new StringBuilder();
+      Strings.Writer sw = new Strings.Writer(Locale.US, sb);
+
+      String testSelector = args.length >= 1 ? args[1] : null;
+      boolean testsFound = false;
+
+      for (Class<?> nested : SJK.class.getDeclaredClasses()) {
+
+        if (testSelector != null && nested.getTypeName().contains(testSelector)) {
+          continue;
+        }
+
+        if (!Test.class.isAssignableFrom(nested)) {
+          continue;
+        }
+
+        Method[] methods = nested.getDeclaredMethods();
+
+        for (Method method : methods) {
+          if ((method.getModifiers() & Modifier.STATIC) != 0
+              && Arrays.equals(testArgs, method.getParameterTypes())) {
+            testMethods.add(new TestMethod(sb, method));
+            testsFound = true;
+          }
+        }
+      }
+
+      if (!testsFound) {
+        reset(sb)
+            .append("No tests found")
+            .append((testSelector != null ? (" matching " + testSelector) : ""));
+        new SimpleFailure(sb.toString()).printStackTrace(System.out);
+        return 1;
+      }
+
+      reset(sb).append("Test results:\n\n");
+
+      for (TestMethod test : testMethods) {
+
+        sb.append(test.testName).append(":\t");
+
+        Testing testing = Testing.setUpTest(test.testName, test.method);
+
+        try {
+          test.method.invoke(null, testing);
+        } catch (Throwable t) {
+          testing.failures.addSuppressed(t);
+        }
+
+        if (testing.failures.getSuppressed().length == 0) {
+          sb.append("passed\n");
+          continue;
+        }
+
+        sb.append("\n\n");
+
+        testing.failures.printStackTrace(sw);
+      }
+
+      System.out.println(sw);
+
+      return 0;
     }
   }
 
@@ -966,7 +1308,7 @@ public final class SJK {
               FileChannel.open(atomicFile.file.toPath(), StandardOpenOption.WRITE)) {
         long written = 0;
         for (int ok = 0; ok < 1; ok++, atomicFile.onSuccess()) {
-          written = copyAll(str, encoder, off, len, channel, buf);
+          written += copyAll(str, encoder, off, len, channel, buf);
         }
         return written;
       }
@@ -1003,7 +1345,7 @@ public final class SJK {
           OutputStream os = new TruncatingFileOutputStream(atomicFile.file)) {
         long written = 0;
         for (int ok = 0; ok < 1; ok++, atomicFile.onSuccess()) {
-          written = copyAll(is, os, buf);
+          written += copyAll(is, os, buf);
         }
         return written;
       }
@@ -2824,7 +3166,7 @@ public final class SJK {
         ThreadLocal.withInitial(ThreadUnsafeStorage::new);
   }
 
-  public static final class FileServerTest {
+  public static final class FileServerTest extends Test {
 
     public static final int TEST_PORT;
 
@@ -2849,15 +3191,13 @@ public final class SJK {
       TEST_PORT = testPort;
     }
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void testFileServer(Testing test) throws IOException, InterruptedException {
 
       PrintStream out = System.out;
       PrintStream err = System.err;
 
       out.println(SJK_CHILD_DEBUG_PORT_USAGE);
       out.println(SJK_TEST_PORT_USAGE);
-
-      Testing test = new Testing(out);
 
       for (boolean useLocationArg : new boolean[] {true, false}) {
 
@@ -3033,8 +3373,6 @@ public final class SJK {
                   + serverProc.exitValue());
         }
       }
-
-      test.throwIfFailed();
     }
 
     private FileServerTest() {}
