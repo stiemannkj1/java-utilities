@@ -1003,6 +1003,14 @@ public final class SJK {
       assertTrue(bool, "Expected true, but was false.");
     }
 
+    public void assertFalse(boolean bool, String message) {
+      assertTrue(!bool, message);
+    }
+
+    public void assertFalse(boolean bool) {
+      assertFalse(bool, "Expected false, but was true.");
+    }
+
     public void assertEquals(Object o1, Object o2) {
 
       if (Objects.equals(o1, o2)) {
@@ -2639,6 +2647,9 @@ public final class SJK {
             + "--location|-l\n"
             + "\tThe optional directory to server files from and upload files to."
             + " Defaults to the working directory of the process.\n\n"
+            + "--base-url-file|-l\n"
+            + "\tThe optional file to output the server base URL to."
+            + " Allows other processes to discover the base URL in the case that a random port is used.\n\n"
             + "--help|-h\n"
             + "\tPrint this usage information.\n\n";
 
@@ -2651,6 +2662,7 @@ public final class SJK {
       PrintStream err = System.err;
       int port = DEFAULT_PORT;
       File location = new File(System.getProperty("user.dir")).getAbsoluteFile();
+      File baseUrlFile = null;
 
       for (int i = 0; i < args.length; i++) {
         switch (args[i]) {
@@ -2684,6 +2696,16 @@ public final class SJK {
             location = new File(args[i]).getAbsoluteFile();
 
             break;
+          case "--base-url-file":
+            if (flags.printIfMissingValue("Base URL File", i, args, USAGE, err)) {
+              return 1;
+            }
+
+            i++;
+
+            baseUrlFile = new File(args[i]).getAbsoluteFile();
+
+            break;
           case "--help":
           // fallthrough;
           case "-h":
@@ -2696,7 +2718,13 @@ public final class SJK {
       }
 
       HttpServer server =
-          startFileServer(port, location, Runtime.getRuntime().availableProcessors() * 2, out, err);
+          startFileServer(
+              port,
+              location,
+              baseUrlFile,
+              Runtime.getRuntime().availableProcessors() * 2,
+              out,
+              err);
 
       if (server == null) {
         return 1;
@@ -2719,13 +2747,19 @@ public final class SJK {
      *
      * @param port the port to use for the server or 0 for an ephemeral port
      * @param location the file system location to serve files from
+     * @param baseUrlFile the file system location to output the base URL to
      * @param threadPoolSize the number of threads to use for the server
      * @param out the std {@link PrintStream}
      * @param err the stderr {@link PrintStream}
      * @return the server or null if the server failed to start
      */
     public static HttpServer startFileServer(
-        int port, File location, int threadPoolSize, PrintStream out, PrintStream err) {
+        int port,
+        File location,
+        File baseUrlFile,
+        int threadPoolSize,
+        PrintStream out,
+        PrintStream err) {
 
       if (port < 0) {
         err.printf("ERROR: port must be greater than or equal to 0, but was: %d\n%s", port, USAGE);
@@ -2760,11 +2794,10 @@ public final class SJK {
       HttpServer server;
 
       try {
-        InetSocketAddress addr = new InetSocketAddress(port);
-        server = HttpServer.create(addr, 0);
+        server = HttpServer.create(new InetSocketAddress(port), 0);
 
         if (port == 0) {
-          port = addr.getPort();
+          port = server.getAddress().getPort();
         }
       } catch (IOException e) {
         e.printStackTrace(err);
@@ -2808,19 +2841,17 @@ public final class SJK {
         e.printStackTrace(err);
       }
 
+      String preferredUrl = "";
+
       while (ifaces.hasMoreElements()) {
         NetworkInterface iface = ifaces.nextElement();
 
         boolean printUrl = false;
 
         try {
-          printUrl = iface.isUp() && !iface.isLoopback();
+          printUrl = iface.isUp();
         } catch (SocketException e) {
           // ignore
-        }
-
-        if (!printUrl) {
-          continue;
         }
 
         Enumeration<InetAddress> addrsIter = iface.getInetAddresses();
@@ -2835,22 +2866,54 @@ public final class SJK {
           }
 
           String addrStr = addr.getHostAddress();
+          String baseUrl;
 
           if (ipv6) {
             if (addrStr.contains("%")) {
               continue;
             }
 
-            out.printf("\nhttp://[%s]:%d%s\n", addrStr, port, downloadPath);
-            out.printf("http://[%s]:%d%s\n", addrStr, port, uploadPath);
+            baseUrl = String.format("http://[%s]:%d", addrStr, port);
+
+            if (preferredUrl.isEmpty()) {
+              preferredUrl = baseUrl;
+            }
           } else {
-            out.printf("\nhttp://%s:%d%s\n", addrStr, port, downloadPath);
-            out.printf("http://%s:%d%s\n", addrStr, port, uploadPath);
+
+            baseUrl = String.format("http://%s:%d", addrStr, port);
+
+            if (preferredUrl.isEmpty() || addr.isLoopbackAddress()) {
+              preferredUrl = baseUrl;
+            }
+          }
+
+          if (printUrl) {
+            out.printf("\n%s%s\n", baseUrl, downloadPath);
+            out.printf("%s%s\n", baseUrl, uploadPath);
           }
         }
       }
 
       out.printf("\n");
+
+      if (baseUrlFile != null) {
+        try {
+          if (preferredUrl.isEmpty()) {
+            throw new IO.SimpleError("Failed to determine base URL for server.");
+          }
+
+          writeAll(
+              preferredUrl,
+              UTF_8.newEncoder(),
+              baseUrlFile,
+              ByteBuffer.allocateDirect(preferredUrl.length() * 4),
+              DEFAULT_ATOMIC_ATTEMPTS);
+        } catch (IOException e) {
+          e.printStackTrace(err);
+          err.println("Failed to write base url to " + baseUrlFile.getAbsolutePath());
+          return null;
+        }
+      }
 
       server.start();
 
@@ -3168,28 +3231,11 @@ public final class SJK {
 
   public static final class FileServerTest extends Test {
 
-    public static final int TEST_PORT;
-
-    private static final int DEFAULT_TEST_PORT = 35294;
     private static final String SJK_TEST_PORT = "SJK_TEST_PORT";
     public static final String SJK_TEST_PORT_USAGE =
         SJK_TEST_PORT
-            + "\n"
-            + "\tThe port to use for testing when this command starts a test server."
-            + " Defaults to "
-            + DEFAULT_TEST_PORT
-            + ".\n";
-
-    static {
-      int testPort = 35294;
-      String testPortString = System.getenv(SJK_TEST_PORT);
-
-      if (!isBlank(testPortString)) {
-        testPort = Integer.parseInt(testPortString);
-      }
-
-      TEST_PORT = testPort;
-    }
+            + "\n\tThe port to use for testing when this command starts a test server."
+            + " Defaults to a random port.\n";
 
     public static void testFileServer(Testing test) throws IOException, InterruptedException {
 
@@ -3245,8 +3291,22 @@ public final class SJK {
         addJavaDebugArgIfSpecified(SJK_CHILD_DEBUG_PORT, true, childArgs);
         childArgs.add(sjkSource.toFile().getAbsolutePath());
         childArgs.add("fileServer");
+
+        // Use a random port.
         childArgs.add("--port");
-        childArgs.add(Integer.toString(TEST_PORT));
+        childArgs.add("0");
+        childArgs.add("--base-url-file");
+        File baseUrlFile = new File(tempDir.toFile(), "addr.txt");
+        baseUrlFile.delete();
+        test.assertFalse(baseUrlFile.exists());
+        childArgs.add(baseUrlFile.getAbsolutePath());
+
+        int testPort = Strings.parseInt(System.getenv(SJK_TEST_PORT), -1);
+
+        if (testPort > 0) {
+          childArgs.add("--port");
+          childArgs.add(Integer.toString(testPort));
+        }
 
         if (useLocationArg) {
           childArgs.add("--location");
@@ -3265,11 +3325,20 @@ public final class SJK {
 
         int timeoutMs = 15_000;
         test.assertTrue(
-            BusyWait.until(
-                () -> net.isOk(net.get("http://localhost:" + TEST_PORT + "/ping")), timeoutMs),
-            "Failed to ping within " + timeoutMs + "ms timeout.");
+            BusyWait.until(baseUrlFile::exists, timeoutMs),
+            "Failed to obtain test server address from "
+                + baseUrlFile.getAbsolutePath()
+                + " with "
+                + timeoutMs
+                + "ms.");
 
         DynBuf buf = new DynBuf(DEFAULT_BUF_SIZE);
+        String addr = readAllAsString(baseUrlFile, buf, StandardCharsets.UTF_8);
+
+        test.assertTrue(
+            BusyWait.until(() -> net.isOk(net.get(addr + "/ping")), timeoutMs),
+            "Failed to ping within " + timeoutMs + "ms.");
+
         ByteBuffer nativeBuf = ByteBuffer.allocateDirect(64 * 1024);
         CharsetEncoder utf8Encoder = UTF_8.newEncoder();
 
@@ -3277,9 +3346,7 @@ public final class SJK {
         File fooTxt = new File(tempDir.toFile(), "foo.txt");
         writeAll("foo\nbar", utf8Encoder.reset(), fooTxt, nativeBuf, 1);
 
-        if (!isOk(
-            uploadFile(
-                fooTxt, "http://localhost:" + TEST_PORT + "/upload/foo.txt", buf.buf, err))) {
+        if (!isOk(uploadFile(fooTxt, addr + "/upload/foo.txt", buf.buf, err))) {
           test.fail("Failed to upload " + fooTxt);
         }
 
@@ -3290,12 +3357,7 @@ public final class SJK {
         // Test download of uploaded file.
         File downloadedFooTxt = new File(tempDir.toFile(), "downloadedFoo.txt");
 
-        if (!isOk(
-            downloadFile(
-                "http://localhost:" + TEST_PORT + "/download/foo.txt",
-                downloadedFooTxt,
-                buf.buf,
-                err))) {
+        if (!isOk(downloadFile(addr + "/download/foo.txt", downloadedFooTxt, buf.buf, err))) {
           test.fail("Failed to download " + fooTxt);
         }
 
@@ -3306,12 +3368,7 @@ public final class SJK {
         writeAll("baz", utf8Encoder.reset(), barTxt, nativeBuf, 1);
         File downloadedBarTxt = new File(tempDir.toFile(), "downloadedBar.txt");
 
-        if (!isOk(
-            downloadFile(
-                "http://localhost:" + TEST_PORT + "/download/bar.txt",
-                downloadedBarTxt,
-                buf.buf,
-                err))) {
+        if (!isOk(downloadFile(addr + "/download/bar.txt", downloadedBarTxt, buf.buf, err))) {
           test.fail("Failed to download " + barTxt);
         }
 
@@ -3322,11 +3379,7 @@ public final class SJK {
         Files.copy(barTxt.toPath(), barTxtOutsideServerDir.toPath());
 
         if (HTTP_BAD_REQUEST
-            != downloadFile(
-                "http://localhost:" + TEST_PORT + "/download/../bar.txt",
-                downloadedBarTxt,
-                buf.buf,
-                err)) {
+            != downloadFile(addr + "/download/../bar.txt", downloadedBarTxt, buf.buf, err)) {
           test.fail(
               "Malicious request escaped server context dir of "
                   + serverDir
@@ -3337,9 +3390,7 @@ public final class SJK {
         // Test malicious upload path traversal.
         File fooTxtOutsideServerDir = new File(parentTempDir.toFile(), "foo.txt");
 
-        if (HTTP_BAD_REQUEST
-            != uploadFile(
-                fooTxt, "http://localhost:" + TEST_PORT + "/upload/../foo.txt", buf.buf, err)) {
+        if (HTTP_BAD_REQUEST != uploadFile(fooTxt, addr + "/upload/../foo.txt", buf.buf, err)) {
           test.fail(
               "Malicious request escaped server context dir of "
                   + serverDir
