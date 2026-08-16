@@ -248,6 +248,15 @@ public final class SJK {
   }
 
   /**
+   * Non-throwing implementation of {@link AutoCloseable}. Implement this interface to defer an
+   * operation in a finally block without requiring the caller to handle an exception.
+   */
+  public interface Defer extends AutoCloseable {
+    @Override
+    void close();
+  }
+
+  /**
    * Complimentary interface to {@link AutoCloseable} that runs code only if no exceptions were
    * thrown. Ex:
    *
@@ -1011,6 +1020,48 @@ public final class SJK {
       assertFalse(bool, "Expected false, but was true.");
     }
 
+    public void assertEquals(boolean b1, boolean b2) {
+      if (b1 == b2) {
+        return;
+      }
+
+      fail(
+          sb().append("Expected: <[\n")
+              .append(b1)
+              .append("\n]> but was <[\n")
+              .append(b2)
+              .append("\n]>")
+              .toString());
+    }
+
+    public void assertEquals(double d1, double d2) {
+      if (d1 == d2) {
+        return;
+      }
+
+      fail(
+          sb().append("Expected: <[\n")
+              .append(d1)
+              .append("\n]> but was <[\n")
+              .append(d2)
+              .append("\n]>")
+              .toString());
+    }
+
+    public void assertEquals(long l1, long l2) {
+      if (l1 == l2) {
+        return;
+      }
+
+      fail(
+          sb().append("Expected: <[\n")
+              .append(l1)
+              .append("\n]> but was <[\n")
+              .append(l2)
+              .append("\n]>")
+              .toString());
+    }
+
     public void assertEquals(Object o1, Object o2) {
 
       if (Objects.equals(o1, o2)) {
@@ -1065,14 +1116,10 @@ public final class SJK {
       StringBuilder sb = new StringBuilder();
       Strings.Writer sw = new Strings.Writer(Locale.US, sb);
 
-      String testSelector = args.length >= 1 ? args[1] : null;
+      String testSelector = args.length > 0 ? args[0] : null;
       boolean testsFound = false;
 
       for (Class<?> nested : SJK.class.getDeclaredClasses()) {
-
-        if (testSelector != null && nested.getTypeName().contains(testSelector)) {
-          continue;
-        }
 
         if (!Test.class.isAssignableFrom(nested)) {
           continue;
@@ -1083,7 +1130,14 @@ public final class SJK {
         for (Method method : methods) {
           if ((method.getModifiers() & Modifier.STATIC) != 0
               && Arrays.equals(testArgs, method.getParameterTypes())) {
-            testMethods.add(new TestMethod(sb, method));
+
+            TestMethod testMethod = new TestMethod(sb, method);
+
+            if (testSelector != null && !testMethod.testName.contains(testSelector)) {
+              continue;
+            }
+
+            testMethods.add(testMethod);
             testsFound = true;
           }
         }
@@ -1099,6 +1153,7 @@ public final class SJK {
 
       reset(sb).append("Test results:\n\n");
 
+      // TODO parallelize
       for (TestMethod test : testMethods) {
 
         sb.append(test.testName).append(":\t");
@@ -1238,8 +1293,8 @@ public final class SJK {
      * Writes a string to a file with minimal allocations.
      *
      * @param str the string to write.
-     * @param encoder the encoder to use for the string. When in doubt, call {@link
-     *     Charset#newEncoder()} on {@link StandardCharsets#UTF_8}.
+     * @param encoder the encoder to use for the string. When in doubt, use {@link
+     *     Charset#newEncoder()} from {@link StandardCharsets#UTF_8}.
      * @param off the offset into the string to start writing from.
      * @param len the length of characters to write.
      * @param channel the {@link FileChannel} of the file to write to.
@@ -1267,6 +1322,8 @@ public final class SJK {
       chars.limit(len);
 
       buf = buf.slice();
+
+      encoder.reset();
 
       while (chars.hasRemaining()) {
 
@@ -1311,7 +1368,8 @@ public final class SJK {
         ByteBuffer buf,
         int atomicAttempts)
         throws IOException {
-      try (AtomicFile atomicFile = AtomicFile.orStandardFile(CREATE_FILE, file, atomicAttempts);
+      try (Defer resetEncoder = encoder::reset;
+          AtomicFile atomicFile = AtomicFile.orStandardFile(CREATE_FILE, file, atomicAttempts);
           FileChannel channel =
               FileChannel.open(atomicFile.file.toPath(), StandardOpenOption.WRITE)) {
         long written = 0;
@@ -1369,6 +1427,8 @@ public final class SJK {
 
       return total;
     }
+
+    // TODO appendAll with atomic
 
     public static int readAll(File file, DynBuf buf) throws IOException {
       try (FileInputStream is = new FileInputStream(file)) {
@@ -1614,6 +1674,17 @@ public final class SJK {
           throws IOException {
         if (atomicAttempts > 0) {
           return create(op, file, atomicAttempts);
+        }
+
+        switch (op) {
+          case CREATE_FILE:
+            file.createNewFile();
+            break;
+          case CREATE_DIR:
+            file.mkdir();
+            break;
+          default:
+            throw unhandledCase(op);
         }
 
         return new AtomicFile(file, null);
@@ -2902,6 +2973,11 @@ public final class SJK {
             throw new IO.SimpleError("Failed to determine base URL for server.");
           }
 
+          if (baseUrlFile.exists()) {
+            throw new IO.SimpleError(
+                baseUrlFile.getAbsolutePath() + " would be overwritten with new base url.");
+          }
+
           writeAll(
               preferredUrl,
               UTF_8.newEncoder(),
@@ -3427,6 +3503,42 @@ public final class SJK {
     }
 
     private FileServerTest() {}
+  }
+
+  public static final class IOTest extends Test {
+    public static void testWriteAll(Testing test) throws IOException {
+
+      PrintStream out = System.out;
+      PrintStream err = System.err;
+
+      Path parentTempDir =
+          Files.createTempDirectory(FileServerTest.class.getTypeName()).toAbsolutePath();
+      Runtime.getRuntime()
+          .addShutdownHook(
+              new Thread(
+                  () -> {
+                    try {
+                      deleteRecursively(parentTempDir, -1);
+                    } catch (IOException e) {
+                      e.printStackTrace(err);
+                    }
+                  }));
+
+      for (int atomicAttempts : new int[] {0, DEFAULT_ATOMIC_ATTEMPTS}) {
+        File fooTxt = new File(parentTempDir.toFile(), "foo" + atomicAttempts + ".txt");
+        CharsetEncoder utf8Encoder = UTF_8.newEncoder();
+        ByteBuffer byteBuf = ByteBuffer.allocateDirect(64 * 1024);
+        DynBuf buf = new DynBuf(64 * 1024);
+
+        test.assertEquals(3, writeAll("foo", utf8Encoder, fooTxt, byteBuf, atomicAttempts));
+
+        test.assertEquals("foo", readAllAsString(fooTxt, buf, UTF_8));
+
+        test.assertEquals(3, writeAll("bar", utf8Encoder, fooTxt, byteBuf, atomicAttempts));
+
+        test.assertEquals("bar", readAllAsString(fooTxt, buf, UTF_8));
+      }
+    }
   }
 
   private SJK() {}
